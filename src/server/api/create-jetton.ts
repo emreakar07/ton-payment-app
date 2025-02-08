@@ -1,5 +1,4 @@
-import {JettonMinter, storeJettonMintMessage} from "@ton-community/assets-sdk";
-import {internalOnchainContentToCell} from "@ton-community/assets-sdk/dist/utils";
+import {AssetsSDK} from "@ton-community/assets-sdk";
 import {beginCell, storeStateInit, toNano} from "@ton/core";
 import {Address} from "@ton/ton";
 import {CHAIN} from "@tonconnect/sdk";
@@ -35,67 +34,31 @@ export const createJetton: HttpResponseResolver = async ({request}) => {
 
     // amount of TON to send with the message
     const amount = toNano('0.06').toString();
-    // forward value for the message to the wallet
-    const walletForwardValue = toNano('0.05');
 
-    // who send the jetton create message
-    const senderAddress = Address.parse(payload.address);
     // who will be the owner of the jetton
     const ownerAddress = Address.parse(payload.address);
-    // who will receive the jetton
-    const receiverAddress = Address.parse(payload.address);
 
-    // create a jetton master
-    const jettonMaster = JettonMinter.createFromConfig({
-      admin: ownerAddress,
-      content: internalOnchainContentToCell({
-        name: body.name,
-        description: body.description,
-        image_data: Buffer.from(body.image_data, 'ascii').toString('base64'),
-        symbol: body.symbol,
-        decimals: body.decimals,
-      }),
-    });
-    if (!jettonMaster.init) {
-      return badRequest({error: 'Invalid jetton master'});
-    }
-
-    // prepare jetton master address
-    const jettonMasterAddress = jettonMaster.address.toString({
-      urlSafe: true,
-      bounceable: true,
-      testOnly: payload.network === CHAIN.TESTNET
+    // Create SDK instance
+    const sdk = AssetsSDK.create({
+      api: payload.network === CHAIN.TESTNET ? 'testnet' : 'mainnet'
     });
 
-    // prepare stateInit for the jetton deploy message
-    const stateInitBase64 = beginCell()
-      .store(storeStateInit(jettonMaster.init))
-      .endCell().toBoc().toString('base64');
-
-    // prepare payload for the jetton mint message
-    const payloadBase64 = beginCell().store(storeJettonMintMessage({
-      queryId: 0n,
-      amount: BigInt(body.amount),
-      from: jettonMaster.address,
-      to: receiverAddress,
-      responseAddress: senderAddress,
-      forwardPayload: null,
-      forwardTonAmount: 1n,
-      walletForwardValue: walletForwardValue,
-    })).endCell().toBoc().toString('base64');
-
-    return ok({
-      validUntil: validUntil,
-      from: senderAddress.toRawString(),
-      messages: [
-        {
-          address: jettonMasterAddress,
-          amount: amount,
-          stateInit: stateInitBase64,
-          payload: payloadBase64
-        }
-      ]
+    // Deploy jetton using SDK
+    const deployData = await sdk.deployJetton({
+      name: body.name,
+      description: body.description,
+      symbol: body.symbol,
+      image_data: body.image_data,
+      amount: body.amount,
+      decimals: body.decimals
+    }, {
+      ownerAddress: ownerAddress,
+      amount: amount,
+      validUntil: validUntil
     });
+
+    return ok(deployData);
+
   } catch (e) {
     if (e instanceof Error) {
       return badRequest({error: 'Invalid request', trace: e.message});

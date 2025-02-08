@@ -1,0 +1,163 @@
+.payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+
+    .transaction-info {
+        background: rgba(102, 170, 238, 0.1);
+        padding: 16px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 400px;
+        backdrop-filter: blur(10px);
+        
+        h3 {
+            color: var(--tg-theme-text-color, #fff);
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            color: var(--tg-theme-text-color, #fff);
+            font-size: 14px;
+            
+            &:not(:last-child) {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .address {
+                font-size: 13px;
+                opacity: 0.8;
+                word-break: break-all;
+                text-align: right;
+                max-width: 180px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .comment {
+                font-size: 13px;
+                opacity: 0.8;
+                word-break: break-word;
+                text-align: right;
+                max-width: 200px;
+            }
+        }
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        max-width: 400px;
+        padding: 0 8px;
+
+        button {
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 20px;
+            transition: all 0.2s ease-in-out;
+            width: 100%;
+            font-weight: 500;
+            -webkit-tap-highlight-color: transparent;
+
+            &.wallet-button {
+                background-color: var(--tg-theme-button-color, #2d4052);
+                color: var(--tg-theme-button-text-color, #fff);
+
+                &.connected {
+                    background-color: var(--tg-theme-secondary-bg-color, #34495e);
+                }
+
+                &:active {
+                    opacity: 0.8;
+                }
+            }
+
+            &.send-button {
+                background-color: var(--tg-theme-button-color, #66aaeee8);
+                color: var(--tg-theme-button-text-color, #fff);
+
+                &:active {
+                    opacity: 0.8;
+                }
+            }
+        }
+    }
+
+    .error-message {
+        background: rgba(255, 107, 107, 0.1);
+        padding: 16px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        
+        h3 {
+            color: var(--tg-theme-text-color, #fff);
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        p {
+            color: var(--tg-theme-text-color, #fff);
+            opacity: 0.8;
+            margin: 0;
+            font-size: 14px;
+        }
+    }
+}
+
+/* Mobil cihazlar için özel stiller */
+@media (max-width: 480px) {
+    .payment-form {
+        padding: 12px;
+        gap: 12px;
+
+        .transaction-info {
+            padding: 12px;
+
+            h3 {
+                font-size: 15px;
+            }
+
+            .info-row {
+                font-size: 13px;
+
+                .address {
+                    max-width: 140px;
+                    font-size: 12px;
+                }
+            }
+        }
+
+        .action-buttons button {
+            padding: 10px;
+            font-size: 14px;
+        }
+    }
+}
+
+/* Telegram Mini App için güvenli alan ayarları */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .payment-form {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+} 

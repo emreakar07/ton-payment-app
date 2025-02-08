@@ -1,20 +1,20 @@
 {
-  "name": "demo-dapp-react-ui",
+  "name": "ton-payment-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host --force",
-    "build": "tsc && GH_PAGES=true VITE_GH_PAGES=true vite build",
-    "build:dev": "tsc && vite build",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ton-community/assets-sdk": "0.0.5",
+    "@pinata/sdk": "^2.1.0",
+    "@ton-community/assets-sdk": "^0.0.5",
     "@ton/core": "^0.56.3",
     "@ton/crypto": "^3.2.0",
     "@ton/ton": "^14.0.0",
-    "@tonconnect/ui-react": "2.0.11",
+    "@tonconnect/ui-react": "^2.0.11",
     "buffer": "^6.0.3",
     "eruda": "^2.11.2",
     "jose": "^5.2.4",
