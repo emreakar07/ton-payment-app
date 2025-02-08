@@ -20,7 +20,7 @@ enableMocking();
 function App() {
   return (
       <TonConnectUIProvider
-          manifestUrl="https://your-app-domain.com/tonconnect-manifest.json"
+          manifestUrl="https://ton-payment-app.vercel.app/tonconnect-manifest.json"
           uiPreferences={{ theme: THEME.DARK }}
           walletsListConfiguration={{
             includeWallets: [
