@@ -6,11 +6,12 @@
   gap: 20px;
   padding: 20px;
   align-items: center;
+  color: #ffffff;
 
   h3 {
-    color: white;
-    opacity: 0.8;
-    font-size: 28px;
+    color: #ffffff;
+    margin-bottom: 20px;
+    text-align: center;
   }
 
   > div:nth-child(2) {
@@ -22,24 +23,17 @@
   }
 
   > button {
+    background: var(--tg-theme-button-color, #2481cc);
+    color: var(--tg-theme-button-text-color, #ffffff);
     border: none;
-    padding: 7px 15px;
-    border-radius: 15px;
+    padding: 10px 20px;
+    border-radius: 8px;
     cursor: pointer;
-
-    background-color: rgba(102,170,238,0.91);
-    color: white;
-    font-size: 16px;
-    line-height: 20px;
-
-    transition: transform 0.1s ease-in-out;
+    margin: 20px auto;
+    display: block;
 
     &:hover {
-      transform: scale(1.03);
-    }
-
-    &:active {
-      transform: scale(0.97);
+      opacity: 0.9;
     }
   }
 }

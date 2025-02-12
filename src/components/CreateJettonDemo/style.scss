@@ -6,10 +6,11 @@
   align-items: center;
   margin-top: 60px;
   padding: 20px;
+  color: #ffffff;
 
   h3 {
-    color: white;
-    opacity: 0.8;
+    color: #ffffff;
+    margin-bottom: 20px;
   }
 
   > div:nth-child(3) {
@@ -21,30 +22,22 @@
   }
 
   &__error {
-    color: rgba(102,170,238,0.91);
+    color: #ff4d4f;
     font-size: 18px;
     line-height: 20px;
   }
 
   button {
+    background: var(--tg-theme-button-color, #2481cc);
+    color: var(--tg-theme-button-text-color, #ffffff);
     border: none;
-    padding: 7px 15px;
-    border-radius: 15px;
+    padding: 10px 20px;
+    border-radius: 8px;
     cursor: pointer;
-
-    background-color: rgba(102,170,238,0.91);
-    color: white;
-    font-size: 16px;
-    line-height: 20px;
-
-    transition: transform 0.1s ease-in-out;
+    margin-bottom: 20px;
 
     &:hover {
-      transform: scale(1.03);
-    }
-
-    &:active {
-      transform: scale(0.97);
+      opacity: 0.9;
     }
   }
 }
