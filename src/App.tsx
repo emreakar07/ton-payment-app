@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './App.scss'
 import {THEME, TonConnectUIProvider} from "@tonconnect/ui-react";
 import { PaymentForm } from './components/PaymentForm/PaymentForm';
@@ -18,6 +18,19 @@ async function enableMocking() {
 enableMocking();
 
 function App() {
+  // Telegram Mini App başlatma
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      // Mini App'i başlat
+      tg.ready();
+      // Tam ekran yap
+      tg.expand();
+      // Kapatma onayını aktifleştir
+      tg.enableClosingConfirmation();
+    }
+  }, []);
+
   return (
       <TonConnectUIProvider
           manifestUrl="https://ton-payment-app.vercel.app/tonconnect-manifest.json"
@@ -45,7 +58,8 @@ function App() {
             ]
           }}
           actionsConfiguration={{
-              twaReturnUrl: 'https://t.me/YourBotUsername/app'
+              twaReturnUrl: 'https://t.me/electronicpinbot', // Bot username'i
+              returnStrategy: 'back'
           }}
       >
         <div className="app">

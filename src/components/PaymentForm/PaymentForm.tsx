@@ -124,21 +124,20 @@ export const PaymentForm = () => {
         }
     }, [paymentStatus, wallet, transactionHash]);
 
-    // URL parametrelerini kontrol et
+    // URL parametrelerini al
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const amount = urlParams.get('amount');
-        const address = urlParams.get('address');
-        const orderId = urlParams.get('orderId');
-        const productName = urlParams.get('productName');
-        const epin = urlParams.get('epin');
-
-        if (amount && address && orderId) {
+        const params = new URLSearchParams(window.location.search);
+        const amount = params.get('amount');
+        const orderId = params.get('orderId');
+        const productName = params.get('productName');
+        const epin = params.get('epin');
+        
+        if (amount && orderId && productName) {
             setPaymentParams({
                 amount,
-                address,
+                address: 'EQBj5QDHLlskX2SWnp8BGGtF6mY2CJE_e9yYGsDyYC2Et8E3', // Şirket cüzdan adresi
                 orderId,
-                productName: productName || 'Product',
+                productName,
                 epin: epin || undefined
             });
             setIsValidAccess(true);
