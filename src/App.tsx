@@ -56,8 +56,7 @@ function App() {
                 bridgeUrl: "https://bridge.tonapi.io/bridge",
                 platforms: ["ios", "android", "chrome", "firefox"]
               }
-            ],
-            defaultWallet: "telegram-wallet"
+            ]
           }}
           actionsConfiguration={{
               twaReturnUrl: 'https://t.me/electronicpinbot',
