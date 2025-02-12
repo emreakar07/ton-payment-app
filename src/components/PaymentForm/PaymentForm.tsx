@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { toNano } from '@ton/core';
-import { createClient } from '@supabase/supabase-js';
-import { TonClient } from '@ton/ton';
-import { Address } from '@ton/core';
 import './PaymentForm.scss';
 
 interface PaymentParams {
@@ -14,15 +11,53 @@ interface PaymentParams {
     epin?: string;
 }
 
-// Transaction mesaj tipi
-interface TonMessage {
-    destination?: string;
-    value: string;
+interface TelegramWebAppData {
+    initData: string;
+    initDataUnsafe: {
+        query_id: string;
+        user?: {
+            id: number;
+            first_name: string;
+            last_name?: string;
+            username?: string;
+            language_code?: string;
+        };
+        auth_date: string;
+        hash: string;
+        start_param?: string;
+    };
 }
 
-// Transaction tipi
-interface TonTransaction {
-    out_msgs: TonMessage[];
+declare global {
+    interface Window {
+        Telegram?: {
+            WebApp: TelegramWebAppData & {
+                ready: () => void;
+                expand: () => void;
+                close: () => void;
+                MainButton: {
+                    text: string;
+                    show: () => void;
+                    hide: () => void;
+                    enable: () => void;
+                    disable: () => void;
+                    showProgress: (leaveActive: boolean) => void;
+                    hideProgress: () => void;
+                    setText: (text: string) => void;
+                    onClick: (fn: () => void) => void;
+                    offClick: (fn: () => void) => void;
+                };
+                BackButton: {
+                    show: () => void;
+                    hide: () => void;
+                    onClick: (fn: () => void) => void;
+                    offClick: (fn: () => void) => void;
+                };
+                platform: string;
+                sendData: (data: string) => void;
+            };
+        };
+    }
 }
 
 export const PaymentForm = () => {
@@ -33,117 +68,84 @@ export const PaymentForm = () => {
     const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed' | null>(null);
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
 
-    // Supabase client
-    const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL || '',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-    );
-
-    // TON Client - TON Console API ile
-    const tonClient = new TonClient({
-        endpoint: 'https://toncenter.com/api/v2/jsonRPC',
-        apiKey: import.meta.env.VITE_TON_API_KEY
-    });
-
-    // Telegram WebApp'i başlat
+    // Telegram WebApp'i başlat ve payment verilerini al
     useEffect(() => {
-        const webapp = window.Telegram?.WebApp;
-        if (webapp) {
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
             // WebApp'i hazırla
-            webapp.ready();
-            
-            // Ana butonu ayarla
-            webapp.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
-            webapp.MainButton.show();
+            tg.ready();
+            tg.expand();
 
-            const handleMainButtonClick = () => {
-                if (!wallet) {
-                    tonConnectUI.openModal();
-                } else {
-                    handlePayment();
+            // Bot'tan gelen verileri kontrol et
+            if (tg.initDataUnsafe?.start_param) {
+                try {
+                    // Bot'tan gelen verileri parse et
+                    const paymentData = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
+                    
+                    setPaymentParams({
+                        amount: paymentData.amount,
+                        address: paymentData.address,
+                        orderId: paymentData.orderId,
+                        productName: paymentData.productName,
+                        epin: paymentData.epin
+                    });
+                    setIsValidAccess(true);
+
+                    // Ana butonu ayarla
+                    tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
+                    tg.MainButton.show();
+                    tg.MainButton.onClick(() => {
+                        if (!wallet) {
+                            handleWalletAction();
+                        } else {
+                            handlePayment();
+                        }
+                    });
+
+                    // BackButton'ı ayarla
+                    tg.BackButton.show();
+                    tg.BackButton.onClick(() => tg.close());
+                } catch (error) {
+                    console.error('Error parsing payment data:', error);
                 }
-            };
-
-            webapp.MainButton.onClick(handleMainButtonClick);
-
-            // BackButton'ı ayarla
-            webapp.BackButton.show();
-            
-            const handleBackButtonClick = () => {
-                webapp.close();
-            };
-            
-            webapp.BackButton.onClick(handleBackButtonClick);
-
-            // Tema renklerini ayarla
-            document.body.style.backgroundColor = webapp.backgroundColor;
-            document.body.style.color = webapp.textColor;
-
-            // Cleanup
-            return () => {
-                if (webapp) {
-                    webapp.MainButton.offClick(handleMainButtonClick);
-                    webapp.BackButton.offClick(handleBackButtonClick);
-                }
-            };
+            }
         }
     }, [wallet]);
 
     // Payment status değiştiğinde MainButton'ı güncelle
     useEffect(() => {
-        const webapp = window.Telegram?.WebApp;
-        if (webapp) {
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
             switch (paymentStatus) {
                 case 'pending':
-                    webapp.MainButton.showProgress(true);
-                    webapp.MainButton.disable();
+                    tg.MainButton.showProgress(true);
+                    tg.MainButton.disable();
                     break;
                 case 'success':
-                    webapp.MainButton.hideProgress();
-                    webapp.MainButton.hide();
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.hide();
                     // İşlem başarılı olduğunda veriyi gönder ve kapat
                     if (transactionHash) {
-                        webapp.sendData(JSON.stringify({
+                        tg.sendData(JSON.stringify({
                             status: 'success',
                             orderId: paymentParams?.orderId,
                             txHash: transactionHash
                         }));
-                        setTimeout(() => webapp.close(), 2000);
+                        setTimeout(() => tg.close(), 2000);
                     }
                     break;
                 case 'failed':
-                    webapp.MainButton.hideProgress();
-                    webapp.MainButton.enable();
-                    webapp.MainButton.setText('TRY AGAIN');
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+                    tg.MainButton.setText('TRY AGAIN');
                     break;
                 default:
-                    webapp.MainButton.hideProgress();
-                    webapp.MainButton.enable();
-                    webapp.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+                    tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
             }
         }
-    }, [paymentStatus, wallet, transactionHash]);
-
-    // URL parametrelerini al
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const amount = params.get('amount');
-        const orderId = params.get('orderId');
-        const productName = params.get('productName');
-        const epin = params.get('epin');
-        const address = params.get('address');
-        
-        if (amount && orderId && productName && address) {
-            setPaymentParams({
-                amount,
-                address,
-                orderId,
-                productName,
-                epin: epin || undefined
-            });
-            setIsValidAccess(true);
-        }
-    }, []);
+    }, [paymentStatus, wallet, transactionHash, paymentParams]);
 
     const handleWalletAction = () => {
         const tg = window.Telegram?.WebApp;
@@ -152,13 +154,9 @@ export const PaymentForm = () => {
         } else {
             // Telegram Mini App içindeyse
             if (tg && (tg.platform === 'tdesktop' || tg.platform === 'android' || tg.platform === 'ios')) {
-                // Direkt modal'ı aç, ilk seçenek Telegram Wallet olacak
                 tonConnectUI.openModal();
-                
-                // Ana butonu gizle
                 tg.MainButton.hide();
             } else {
-                // Değilse normal modal'ı göster
                 tonConnectUI.openModal();
             }
         }
@@ -238,15 +236,6 @@ export const PaymentForm = () => {
                         {paymentStatus === 'failed' && <p>Payment Failed. Please try again.</p>}
                     </div>
                 )}
-            </div>
-
-            <div className="action-buttons">
-                <button 
-                    className={`wallet-button ${wallet ? 'connected' : ''}`}
-                    onClick={handleWalletAction}
-                >
-                    {wallet ? 'Disconnect Wallet' : 'Connect Wallet'}
-                </button>
             </div>
         </div>
     );
