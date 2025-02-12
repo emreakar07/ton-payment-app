@@ -84,6 +84,9 @@ export const PaymentForm = () => {
         const webApp = window.Telegram?.WebApp;
         if (webApp) {
             webApp.ready();
+            webApp.expand(); // WebApp'i tam ekran yap
+            webApp.enableClosingConfirmation(); // Kapatma onayını aktif et
+            
             // Tema renklerini ayarla
             if (webApp.backgroundColor && webApp.textColor) {
                 document.documentElement.style.setProperty('--tg-theme-bg-color', webApp.backgroundColor);
