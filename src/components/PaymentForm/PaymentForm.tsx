@@ -47,26 +47,77 @@ export const PaymentForm = () => {
 
     // Telegram WebApp'i başlat
     useEffect(() => {
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            // Mini App'i hazırla
-            tg.ready();
+        const webapp = window.Telegram?.WebApp;
+        if (webapp) {
+            // WebApp'i hazırla
+            webapp.ready();
             
-            // Tam ekran yap
-            tg.expand();
-            
-            // Kapatma onayını aktifleştir
-            tg.enableClosingConfirmation();
+            // Ana butonu ayarla
+            webapp.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
+            webapp.MainButton.show();
+            webapp.MainButton.onClick(() => {
+                if (!wallet) {
+                    tonConnectUI.openModal();
+                } else {
+                    handlePayment();
+                }
+            });
+
+            // BackButton'ı ayarla
+            webapp.BackButton.show();
+            webapp.BackButton.onClick(() => {
+                webapp.close();
+            });
 
             // Tema renklerini ayarla
-            if (tg.themeParams) {
-                document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
-                document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
-                document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color);
-                document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color);
+            document.body.style.backgroundColor = webapp.backgroundColor;
+            document.body.style.color = webapp.textColor;
+        }
+
+        // Cleanup
+        return () => {
+            const webapp = window.Telegram?.WebApp;
+            if (webapp) {
+                webapp.MainButton.offClick();
+                webapp.BackButton.offClick();
+            }
+        };
+    }, [wallet]);
+
+    // Payment status değiştiğinde MainButton'ı güncelle
+    useEffect(() => {
+        const webapp = window.Telegram?.WebApp;
+        if (webapp) {
+            switch (paymentStatus) {
+                case 'pending':
+                    webapp.MainButton.showProgress(true);
+                    webapp.MainButton.disable();
+                    break;
+                case 'success':
+                    webapp.MainButton.hideProgress();
+                    webapp.MainButton.hide();
+                    // İşlem başarılı olduğunda veriyi gönder ve kapat
+                    if (transactionHash) {
+                        webapp.sendData(JSON.stringify({
+                            status: 'success',
+                            orderId: paymentParams?.orderId,
+                            txHash: transactionHash
+                        }));
+                        setTimeout(() => webapp.close(), 2000);
+                    }
+                    break;
+                case 'failed':
+                    webapp.MainButton.hideProgress();
+                    webapp.MainButton.enable();
+                    webapp.MainButton.setText('TRY AGAIN');
+                    break;
+                default:
+                    webapp.MainButton.hideProgress();
+                    webapp.MainButton.enable();
+                    webapp.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
             }
         }
-    }, []);
+    }, [paymentStatus, wallet, transactionHash]);
 
     // URL parametrelerini kontrol et
     useEffect(() => {
@@ -118,30 +169,10 @@ export const PaymentForm = () => {
             if (result) {
                 setTransactionHash(result.boc);
                 setPaymentStatus('success');
-
-                // Telegram'a başarılı sonucu gönder
-                const tg = window.Telegram?.WebApp;
-                if (tg) {
-                    tg.sendData(JSON.stringify({
-                        status: 'success',
-                        orderId: paymentParams.orderId,
-                        txHash: result.boc
-                    }));
-                }
             }
         } catch (error) {
             console.error('Payment error:', error);
             setPaymentStatus('failed');
-
-            // Telegram'a hata sonucunu gönder
-            const tg = window.Telegram?.WebApp;
-            if (tg) {
-                tg.sendData(JSON.stringify({
-                    status: 'failed',
-                    orderId: paymentParams.orderId,
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                }));
-            }
         }
     };
 
@@ -200,15 +231,6 @@ export const PaymentForm = () => {
                 >
                     {wallet ? 'Disconnect Wallet' : 'Connect Wallet'}
                 </button>
-                
-                {wallet && !['success', 'pending'].includes(paymentStatus || '') && (
-                    <button 
-                        className="send-button"
-                        onClick={handlePayment}
-                    >
-                        Send Transaction
-                    </button>
-                )}
             </div>
         </div>
     );
