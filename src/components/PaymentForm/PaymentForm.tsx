@@ -55,33 +55,38 @@ export const PaymentForm = () => {
             // Ana butonu ayarla
             webapp.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
             webapp.MainButton.show();
-            webapp.MainButton.onClick(() => {
+
+            const handleMainButtonClick = () => {
                 if (!wallet) {
                     tonConnectUI.openModal();
                 } else {
                     handlePayment();
                 }
-            });
+            };
+
+            webapp.MainButton.onClick(handleMainButtonClick);
 
             // BackButton'ı ayarla
             webapp.BackButton.show();
-            webapp.BackButton.onClick(() => {
+            
+            const handleBackButtonClick = () => {
                 webapp.close();
-            });
+            };
+            
+            webapp.BackButton.onClick(handleBackButtonClick);
 
             // Tema renklerini ayarla
             document.body.style.backgroundColor = webapp.backgroundColor;
             document.body.style.color = webapp.textColor;
-        }
 
-        // Cleanup
-        return () => {
-            const webapp = window.Telegram?.WebApp;
-            if (webapp) {
-                webapp.MainButton.offClick();
-                webapp.BackButton.offClick();
-            }
-        };
+            // Cleanup
+            return () => {
+                if (webapp) {
+                    webapp.MainButton.offClick(handleMainButtonClick);
+                    webapp.BackButton.offClick(handleBackButtonClick);
+                }
+            };
+        }
     }, [wallet]);
 
     // Payment status değiştiğinde MainButton'ı güncelle
