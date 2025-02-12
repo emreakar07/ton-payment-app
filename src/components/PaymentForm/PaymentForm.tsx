@@ -75,7 +75,7 @@ export const PaymentForm = () => {
             // HMAC imzası oluştur
             const webhookData = {
                 data,
-                signature: generateSignature(data, process.env.VITE_WEBHOOK_SECRET || ''),
+                signature: generateSignature(data, import.meta.env.VITE_WEBHOOK_SECRET || ''),
                 timestamp
             };
 
@@ -105,7 +105,7 @@ export const PaymentForm = () => {
             // Hata durumunda webhook
             const webhookData = {
                 data,
-                signature: generateSignature(data, process.env.VITE_WEBHOOK_SECRET || ''),
+                signature: generateSignature(data, import.meta.env.VITE_WEBHOOK_SECRET || ''),
                 timestamp
             };
 
