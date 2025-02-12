@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useState, useEffect} from 'react';
 import ReactJson, {InteractionProps} from 'react-json-view';
 import './style.scss';
 import {SendTransactionRequest, useTonConnectUI, useTonWallet} from "@tonconnect/ui-react";
@@ -34,7 +34,7 @@ const defaultTx: SendTransactionRequest = {
   ],
 };
 
-export function TxForm() {
+export const TxForm = () => {
 
   const [tx, setTx] = useState(defaultTx);
 
@@ -44,6 +44,20 @@ export function TxForm() {
 
   const onChange = useCallback((value: InteractionProps) => {
     setTx(value.updated_src as SendTransactionRequest)
+  }, []);
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      
+      // Tema renklerini ayarla
+      if (tg.themeParams) {
+        document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
+        document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
+      }
+    }
   }, []);
 
   return (

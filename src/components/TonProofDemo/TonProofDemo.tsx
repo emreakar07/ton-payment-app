@@ -56,6 +56,19 @@ export const TonProofDemo = () => {
 			setAuthorized(true);
 		}), [tonConnectUI]);
 
+	useEffect(() => {
+		const tg = window.Telegram?.WebApp;
+		if (tg) {
+			tg.ready();
+			tg.expand();
+			
+			// Tema renklerini ayarla
+			if (tg.themeParams) {
+				document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
+				document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
+			}
+		}
+	}, []);
 
 	const handleClick = useCallback(async () => {
 		if (!wallet) {

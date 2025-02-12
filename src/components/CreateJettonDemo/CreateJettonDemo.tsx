@@ -1,5 +1,5 @@
 import {useTonConnectUI, useTonWallet} from "@tonconnect/ui-react";
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import ReactJson from 'react-json-view';
 import './style.scss';
 import {CreateJettonRequestDto} from "../../server/dto/create-jetton-request-dto";
@@ -18,6 +18,20 @@ export const CreateJettonDemo = () => {
 	const [data, setData] = useState({});
 	const [tonConnectUI] = useTonConnectUI();
 	const wallet = useTonWallet();
+
+	useEffect(() => {
+		const tg = window.Telegram?.WebApp;
+		if (tg) {
+			tg.ready();
+			tg.expand();
+			
+			// Tema renklerini ayarla
+			if (tg.themeParams) {
+				document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
+				document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
+			}
+		}
+	}, []);
 
 	const handleClick = async () => {
 		const response = await TonProofDemoApi.createJetton(jetton);
