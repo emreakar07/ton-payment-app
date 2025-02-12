@@ -131,11 +131,12 @@ export const PaymentForm = () => {
         const orderId = params.get('orderId');
         const productName = params.get('productName');
         const epin = params.get('epin');
+        const address = params.get('address');
         
-        if (amount && orderId && productName) {
+        if (amount && orderId && productName && address) {
             setPaymentParams({
                 amount,
-                address: 'EQBj5QDHLlskX2SWnp8BGGtF6mY2CJE_e9yYGsDyYC2Et8E3', // Şirket cüzdan adresi
+                address,
                 orderId,
                 productName,
                 epin: epin || undefined
