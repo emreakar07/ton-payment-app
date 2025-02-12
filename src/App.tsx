@@ -42,7 +42,7 @@ function App() {
                 name: "Wallet",
                 imageUrl: "https://wallet.tg/images/logo-288.png",
                 aboutUrl: "https://wallet.tg/",
-                universalLink: "https://t.me/wallet?attach=wallet",
+                universalLink: "https://t.me/wallet",
                 bridgeUrl: "https://bridge.ton.space/bridge",
                 platforms: ["ios", "android", "macos", "windows", "linux"]
               },
@@ -58,8 +58,9 @@ function App() {
             ]
           }}
           actionsConfiguration={{
-              twaReturnUrl: 'https://t.me/electronicpinbot', // Bot username'i
-              returnStrategy: 'back'
+              twaReturnUrl: 'https://t.me/electronicpinbot',
+              returnStrategy: 'back',
+              skipRedirectToTelegramOnMobile: true
           }}
       >
         <div className="app">

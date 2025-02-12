@@ -146,10 +146,18 @@ export const PaymentForm = () => {
     }, []);
 
     const handleWalletAction = () => {
+        const tg = window.Telegram?.WebApp;
         if (wallet) {
             tonConnectUI.disconnect();
         } else {
-            tonConnectUI.openModal();
+            // Telegram Mini App içindeyse ve Telegram Wallet varsa
+            if (tg && tg.platform === 'tdesktop' || tg?.platform === 'android' || tg?.platform === 'ios') {
+                // Direkt Telegram Wallet'ı aç
+                tonConnectUI.connectWallet(['telegram-wallet']);
+            } else {
+                // Değilse normal modal'ı göster
+                tonConnectUI.openModal();
+            }
         }
     };
 
