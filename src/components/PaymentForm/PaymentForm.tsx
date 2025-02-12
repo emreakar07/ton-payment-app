@@ -85,15 +85,18 @@ export const PaymentForm = () => {
             tg.ready();
             tg.expand();
 
-            console.log('InitDataUnsafe:', tg.initDataUnsafe); // Debug için
-            console.log('Start Param:', tg.initDataUnsafe?.start_param); // Debug için
+            console.log('InitDataUnsafe:', tg.initDataUnsafe);
 
-            // Bot'tan gelen verileri kontrol et
-            if (tg.initDataUnsafe?.start_param) {
-                try {
-                    // Bot'tan gelen verileri parse et
-                    const paymentData = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
-                    console.log('Payment Data:', paymentData); // Debug için
+            try {
+                // URL'den parametreleri al
+                const urlParams = new URLSearchParams(window.location.search);
+                const startParam = urlParams.get('start_param');
+                
+                console.log('URL Start Param:', startParam);
+
+                if (startParam) {
+                    const paymentData = JSON.parse(decodeURIComponent(startParam));
+                    console.log('Payment Data:', paymentData);
                     
                     setPaymentParams({
                         amount: paymentData.amount,
@@ -118,12 +121,12 @@ export const PaymentForm = () => {
                     // BackButton'ı ayarla
                     tg.BackButton.show();
                     tg.BackButton.onClick(() => tg.close());
-                } catch (error) {
-                    console.error('Error parsing payment data:', error);
-                    console.error('Raw start_param:', tg.initDataUnsafe?.start_param); // Debug için
+                } else {
+                    console.log('No start_param found in URL');
                 }
-            } else {
-                console.log('No start_param found'); // Debug için
+            } catch (error) {
+                console.error('Error parsing payment data:', error);
+                console.error('URL:', window.location.href);
             }
         }
     }, [wallet]);
