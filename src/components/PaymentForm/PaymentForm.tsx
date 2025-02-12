@@ -79,6 +79,19 @@ export const PaymentForm = () => {
         }
     }, [wallet, tonConnectUI]);
 
+    // Telegram WebApp'i başlat
+    useEffect(() => {
+        const webApp = window.Telegram?.WebApp;
+        if (webApp) {
+            webApp.ready();
+            // Tema renklerini ayarla
+            if (webApp.backgroundColor && webApp.textColor) {
+                document.documentElement.style.setProperty('--tg-theme-bg-color', webApp.backgroundColor);
+                document.documentElement.style.setProperty('--tg-theme-text-color', webApp.textColor);
+            }
+        }
+    }, []);
+
     // Transaction durumunu güncelle
     const updateTransactionStatus = async (orderId: string, txHash: string) => {
         try {
@@ -98,15 +111,24 @@ export const PaymentForm = () => {
         }
     };
 
-    // Transaction'ı doğrula
+    // Transaction'ı doğrula - debug logları ekleyelim
     const verifyTransaction = async (txHash: string, expectedAmount: string, expectedAddress: string, orderId: string): Promise<boolean> => {
         try {
+            console.log('Starting transaction verification...', {
+                txHash,
+                expectedAmount,
+                expectedAddress,
+                orderId
+            });
+
             // Önce Supabase'den order'ı kontrol et
             const { data: orderData, error: orderError } = await supabase
                 .from('orders')
                 .select('amount, wallet_address, status')
                 .eq('order_id', orderId)
                 .single();
+
+            console.log('Order data from Supabase:', { orderData, orderError });
 
             if (orderError || !orderData) {
                 console.error('Order not found:', orderError);
@@ -132,17 +154,21 @@ export const PaymentForm = () => {
             }
 
             // Transaction'ı getir ve kontrol et
+            console.log('Fetching transaction from TON...');
             const tx = await tonClient.getTransactions(Address.parse(expectedAddress), {
                 limit: 1,
                 hash: txHash
             });
             
+            console.log('Transaction from TON:', tx);
+
             if (!tx.length) {
                 console.error('Transaction not found');
                 return false;
             }
 
             const transaction = tx[0] as unknown as TonTransaction;
+            console.log('Parsed transaction:', transaction);
 
             // Amount ve address kontrolü
             const message = transaction.out_msgs.find((msg: TonMessage) => 
@@ -175,7 +201,10 @@ export const PaymentForm = () => {
             return isValid;
 
         } catch (error) {
-            console.error('Error verifying transaction:', error);
+            console.error('Detailed error in verifyTransaction:', error);
+            if (error instanceof Error) {
+                console.error('Error stack:', error.stack);
+            }
             return false;
         }
     };
@@ -185,6 +214,7 @@ export const PaymentForm = () => {
 
         try {
             setPaymentStatus('pending');
+            console.log('Starting payment process...');
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -196,16 +226,25 @@ export const PaymentForm = () => {
                 ]
             };
 
+            console.log('Sending transaction:', transaction);
             const result = await tonConnectUI.sendTransaction(transaction);
+            console.log('Transaction result:', result);
+            
             const txHash = result.boc;
             
-            // Transaction'ı doğrula - orderId'yi de gönder
+            // Transaction doğrulama için biraz bekleyelim
+            console.log('Waiting for transaction to be processed...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Transaction'ı doğrula
             const isValid = await verifyTransaction(
                 txHash,
                 paymentParams.amount,
                 paymentParams.address,
                 paymentParams.orderId
             );
+
+            console.log('Transaction verification result:', isValid);
 
             if (!isValid) {
                 throw new Error('Transaction verification failed');
@@ -218,26 +257,28 @@ export const PaymentForm = () => {
             await updateTransactionStatus(paymentParams.orderId, txHash);
 
             // Telegram Mini App'e bildir
-            if ('Telegram' in window && window.Telegram?.WebApp) {
-                window.Telegram.WebApp.sendData(JSON.stringify({
+            const webApp = window.Telegram?.WebApp;
+            if (webApp) {
+                const resultData = {
                     status: 'success',
                     orderId: paymentParams.orderId,
                     txHash: txHash
-                }));
+                };
+                console.log('Sending result to Telegram:', resultData);
+                webApp.sendData(JSON.stringify(resultData));
                 
                 setTimeout(() => {
-                    if ('Telegram' in window && window.Telegram?.WebApp) {
-                        window.Telegram.WebApp.close();
-                    }
+                    webApp.close();
                 }, 2000);
             }
 
         } catch (error) {
-            console.error('Payment failed:', error);
+            console.error('Detailed payment error:', error);
             setPaymentStatus('failed');
             
-            if ('Telegram' in window && window.Telegram?.WebApp) {
-                window.Telegram.WebApp.sendData(JSON.stringify({
+            const webApp = window.Telegram?.WebApp;
+            if (webApp) {
+                webApp.sendData(JSON.stringify({
                     status: 'failed',
                     orderId: paymentParams.orderId,
                     error: error instanceof Error ? error.message : 'Unknown error occurred'
