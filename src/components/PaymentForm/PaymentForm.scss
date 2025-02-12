@@ -123,6 +123,42 @@
             font-size: 14px;
         }
     }
+
+    .status-message {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        
+        &.pending {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
+        
+        &.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+        
+        &.failed {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+
+        p {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .tx-hash {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            opacity: 0.8;
+            word-break: break-all;
+        }
+    }
 }
 
 /* Mobil cihazlar için özel stiller */

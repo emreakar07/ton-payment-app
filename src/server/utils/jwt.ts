@@ -4,7 +4,7 @@ import {decodeJwt, JWTPayload, jwtVerify, SignJWT} from 'jose';
 /**
  * Secret key for the token.
  */
-const JWT_SECRET_KEY = 'your_secret_key';
+const JWT_SECRET_KEY = 'kerosefo3169';
 
 /**
  * Payload of the token.

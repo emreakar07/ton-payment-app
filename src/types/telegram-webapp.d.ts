@@ -1,9 +1,12 @@
-interface TelegramWebApp {
-    sendData: (data: string) => void;
+declare global {
+    interface Window {
+        Telegram?: {
+            WebApp: {
+                sendData: (data: string) => void;
+                close: () => void;
+            }
+        }
+    }
 }
 
-interface Window {
-    Telegram?: {
-        WebApp: TelegramWebApp;
-    };
-} 
+export {}; 
