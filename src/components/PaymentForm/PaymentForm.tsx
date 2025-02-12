@@ -85,11 +85,15 @@ export const PaymentForm = () => {
             tg.ready();
             tg.expand();
 
+            console.log('InitDataUnsafe:', tg.initDataUnsafe); // Debug için
+            console.log('Start Param:', tg.initDataUnsafe?.start_param); // Debug için
+
             // Bot'tan gelen verileri kontrol et
             if (tg.initDataUnsafe?.start_param) {
                 try {
                     // Bot'tan gelen verileri parse et
                     const paymentData = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
+                    console.log('Payment Data:', paymentData); // Debug için
                     
                     setPaymentParams({
                         amount: paymentData.amount,
@@ -116,7 +120,10 @@ export const PaymentForm = () => {
                     tg.BackButton.onClick(() => tg.close());
                 } catch (error) {
                     console.error('Error parsing payment data:', error);
+                    console.error('Raw start_param:', tg.initDataUnsafe?.start_param); // Debug için
                 }
+            } else {
+                console.log('No start_param found'); // Debug için
             }
         }
     }, [wallet]);
