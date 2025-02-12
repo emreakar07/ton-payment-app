@@ -151,9 +151,9 @@ export const PaymentForm = () => {
             tonConnectUI.disconnect();
         } else {
             // Telegram Mini App içindeyse ve Telegram Wallet varsa
-            if (tg && tg.platform === 'tdesktop' || tg?.platform === 'android' || tg?.platform === 'ios') {
+            if (tg && (tg.platform === 'tdesktop' || tg.platform === 'android' || tg.platform === 'ios')) {
                 // Direkt Telegram Wallet'ı aç
-                tonConnectUI.connectWallet(['telegram-wallet']);
+                tonConnectUI.openModal();
             } else {
                 // Değilse normal modal'ı göster
                 tonConnectUI.openModal();
