@@ -165,6 +165,43 @@ export const PaymentForm = () => {
         }
     }, [paymentStatus, wallet, transactionHash, paymentParams]);
 
+    // Wallet durumu değiştiğinde MainButton'ı güncelle
+    useEffect(() => {
+        const tg = window.Telegram?.WebApp;
+        if (tg && isValidAccess) {
+            if (wallet) {
+                tg.MainButton.setText('SEND PAYMENT');
+                tg.MainButton.show();
+                tg.MainButton.enable();
+            } else {
+                tg.MainButton.setText('CONNECT WALLET');
+                tg.MainButton.show();
+                tg.MainButton.enable();
+            }
+        }
+    }, [wallet, isValidAccess]);
+
+    // MainButton click handler'ını ayrı bir useEffect'te yönetelim
+    useEffect(() => {
+        const tg = window.Telegram?.WebApp;
+        if (tg && isValidAccess) {
+            const handleMainButtonClick = () => {
+                if (!wallet) {
+                    handleWalletAction();
+                } else {
+                    handlePayment();
+                }
+            };
+
+            tg.MainButton.onClick(handleMainButtonClick);
+
+            // Cleanup
+            return () => {
+                tg.MainButton.offClick(handleMainButtonClick);
+            };
+        }
+    }, [wallet, isValidAccess]);
+
     const handleWalletAction = () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
@@ -172,8 +209,27 @@ export const PaymentForm = () => {
         } else {
             // Telegram Mini App içindeyse
             if (tg && (tg.platform === 'tdesktop' || tg.platform === 'android' || tg.platform === 'ios')) {
-                tonConnectUI.openModal();
+                // Modal açılmadan önce butonu gizle
                 tg.MainButton.hide();
+                
+                // Wallet modal'ını aç
+                tonConnectUI.openModal();
+
+                // Modal kapandığında butonu tekrar göster
+                const checkWalletInterval = setInterval(() => {
+                    const modalElement = document.querySelector('.tc-connect-modal');
+                    if (!modalElement) {
+                        clearInterval(checkWalletInterval);
+                        // Modal kapandıysa ve wallet bağlıysa
+                        if (wallet) {
+                            tg.MainButton.setText('SEND PAYMENT');
+                        } else {
+                            tg.MainButton.setText('CONNECT WALLET');
+                        }
+                        tg.MainButton.show();
+                        tg.MainButton.enable();
+                    }
+                }, 500);
             } else {
                 tonConnectUI.openModal();
             }
