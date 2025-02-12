@@ -92,7 +92,20 @@ export const PaymentForm = () => {
                 timestamp
             };
 
-            // Webhook'u gönder
+            // Webhook'u backend'e gönder
+            try {
+                await fetch('https://epinbackend-production.up.railway.app/payment/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+            } catch (error) {
+                console.error('Callback error:', error);
+            }
+
+            // Telegram Mini App'e bildir
             if ('Telegram' in window && window.Telegram?.WebApp) {
                 window.Telegram.WebApp.sendData(JSON.stringify(webhookData));
                 
