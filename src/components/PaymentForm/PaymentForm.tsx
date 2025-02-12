@@ -35,6 +35,7 @@ declare global {
                 ready: () => void;
                 expand: () => void;
                 close: () => void;
+                enableClosingConfirmation: () => void;
                 MainButton: {
                     text: string;
                     show: () => void;
@@ -55,6 +56,14 @@ declare global {
                 };
                 platform: string;
                 sendData: (data: string) => void;
+                themeParams: {
+                    bg_color: string;
+                    text_color: string;
+                    hint_color: string;
+                    link_color: string;
+                    button_color: string;
+                    button_text_color: string;
+                };
             };
         };
     }
