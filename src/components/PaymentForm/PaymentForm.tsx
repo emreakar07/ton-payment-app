@@ -76,58 +76,57 @@ export const PaymentForm = () => {
     const [isValidAccess, setIsValidAccess] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed' | null>(null);
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
+    const [isTelegramClient, setIsTelegramClient] = useState(false);
 
-    // Telegram WebApp'i başlat ve payment verilerini al
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
-        if (tg) {
-            // WebApp'i hazırla
-            tg.ready();
-            tg.expand();
+        
+        // Telegram WebApp kontrolü
+        if (!tg) {
+            setIsValidAccess(false);
+            return;
+        }
 
-            console.log('InitDataUnsafe:', tg.initDataUnsafe);
+        // WebApp'i hazırla
+        tg.ready();
+        tg.expand();
+        setIsTelegramClient(true);
 
-            try {
-                // URL'den parametreleri al
-                const urlParams = new URLSearchParams(window.location.search);
-                const startParam = urlParams.get('start_param');
+        try {
+            // URL'den parametreleri al
+            const urlParams = new URLSearchParams(window.location.search);
+            const startParam = urlParams.get('start_param');
+            
+            if (startParam) {
+                const paymentData = JSON.parse(decodeURIComponent(startParam));
                 
-                console.log('URL Start Param:', startParam);
+                setPaymentParams({
+                    amount: paymentData.amount,
+                    address: paymentData.address,
+                    orderId: paymentData.orderId,
+                    productName: paymentData.productName,
+                    epin: paymentData.epin
+                });
+                setIsValidAccess(true);
 
-                if (startParam) {
-                    const paymentData = JSON.parse(decodeURIComponent(startParam));
-                    console.log('Payment Data:', paymentData);
-                    
-                    setPaymentParams({
-                        amount: paymentData.amount,
-                        address: paymentData.address,
-                        orderId: paymentData.orderId,
-                        productName: paymentData.productName,
-                        epin: paymentData.epin
-                    });
-                    setIsValidAccess(true);
+                // Ana butonu ayarla
+                tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
+                tg.MainButton.show();
+                tg.MainButton.onClick(() => {
+                    if (!wallet) {
+                        handleWalletAction();
+                    } else {
+                        handlePayment();
+                    }
+                });
 
-                    // Ana butonu ayarla
-                    tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
-                    tg.MainButton.show();
-                    tg.MainButton.onClick(() => {
-                        if (!wallet) {
-                            handleWalletAction();
-                        } else {
-                            handlePayment();
-                        }
-                    });
-
-                    // BackButton'ı ayarla
-                    tg.BackButton.show();
-                    tg.BackButton.onClick(() => tg.close());
-                } else {
-                    console.log('No start_param found in URL');
-                }
-            } catch (error) {
-                console.error('Error parsing payment data:', error);
-                console.error('URL:', window.location.href);
+                // BackButton'ı ayarla
+                tg.BackButton.show();
+                tg.BackButton.onClick(() => tg.close());
             }
+        } catch (error) {
+            console.error('Error parsing payment data:', error);
+            setIsValidAccess(false);
         }
     }, [wallet]);
 
@@ -208,6 +207,16 @@ export const PaymentForm = () => {
             setPaymentStatus('failed');
         }
     };
+
+    if (!isTelegramClient) {
+        return (
+            <div className="payment-form">
+                <div className="error-message">
+                    This app can only be accessed through Telegram
+                </div>
+            </div>
+        );
+    }
 
     if (!isValidAccess) {
         return (
