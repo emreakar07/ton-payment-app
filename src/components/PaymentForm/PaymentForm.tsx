@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { toNano } from '@ton/core';
-import CryptoJS from 'crypto-js';
+import { createClient } from '@supabase/supabase-js';
+import { TonClient } from '@ton/ton';
+import { Address } from '@ton/core';
 import './PaymentForm.scss';
 
 interface PaymentParams {
@@ -12,6 +14,17 @@ interface PaymentParams {
     epin?: string;
 }
 
+// Transaction mesaj tipi
+interface TonMessage {
+    destination?: string;
+    value: string;
+}
+
+// Transaction tipi
+interface TonTransaction {
+    out_msgs: TonMessage[];
+}
+
 export const PaymentForm = () => {
     const [tonConnectUI] = useTonConnectUI();
     const wallet = useTonWallet();
@@ -19,6 +32,18 @@ export const PaymentForm = () => {
     const [isValidAccess, setIsValidAccess] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed' | null>(null);
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
+
+    // Supabase client
+    const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || ''
+    );
+
+    // TON Client - TON Console API ile
+    const tonClient = new TonClient({
+        endpoint: 'https://toncenter.com/api/v2/jsonRPC',
+        apiKey: import.meta.env.VITE_TON_API_KEY
+    });
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -54,6 +79,107 @@ export const PaymentForm = () => {
         }
     }, [wallet, tonConnectUI]);
 
+    // Transaction durumunu güncelle
+    const updateTransactionStatus = async (orderId: string, txHash: string) => {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ 
+                    status: 'completed',
+                    transaction_hash: txHash,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('order_id', orderId);
+
+            if (error) throw error;
+            
+        } catch (error) {
+            console.error('Error updating transaction status:', error);
+        }
+    };
+
+    // Transaction'ı doğrula
+    const verifyTransaction = async (txHash: string, expectedAmount: string, expectedAddress: string, orderId: string): Promise<boolean> => {
+        try {
+            // Önce Supabase'den order'ı kontrol et
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .select('amount, wallet_address, status')
+                .eq('order_id', orderId)
+                .single();
+
+            if (orderError || !orderData) {
+                console.error('Order not found:', orderError);
+                return false;
+            }
+
+            // Order zaten tamamlanmış mı kontrol et
+            if (orderData.status === 'completed') {
+                console.error('Order already completed');
+                return false;
+            }
+
+            // Order'daki amount ve address, beklenen değerlerle eşleşiyor mu?
+            if (orderData.amount !== expectedAmount || 
+                orderData.wallet_address.toLowerCase() !== expectedAddress.toLowerCase()) {
+                console.error('Order details do not match:', {
+                    expectedAmount,
+                    orderAmount: orderData.amount,
+                    expectedAddress,
+                    orderAddress: orderData.wallet_address
+                });
+                return false;
+            }
+
+            // Transaction'ı getir ve kontrol et
+            const tx = await tonClient.getTransactions(Address.parse(expectedAddress), {
+                limit: 1,
+                hash: txHash
+            });
+            
+            if (!tx.length) {
+                console.error('Transaction not found');
+                return false;
+            }
+
+            const transaction = tx[0] as unknown as TonTransaction;
+
+            // Amount ve address kontrolü
+            const message = transaction.out_msgs.find((msg: TonMessage) => 
+                msg.destination?.toLowerCase() === expectedAddress.toLowerCase()
+            );
+
+            if (!message) {
+                console.error('No matching outgoing message found');
+                return false;
+            }
+
+            const actualAmount = message.value;
+            const actualAddress = message.destination || '';
+            
+            const expectedNano = toNano(expectedAmount).toString();
+            
+            // Amount ve address eşleşiyor mu?
+            const isValid = actualAmount === expectedNano && 
+                          actualAddress.toLowerCase() === expectedAddress.toLowerCase();
+
+            if (!isValid) {
+                console.error('Transaction verification failed:', {
+                    expectedAmount: expectedNano,
+                    actualAmount,
+                    expectedAddress,
+                    actualAddress
+                });
+            }
+
+            return isValid;
+
+        } catch (error) {
+            console.error('Error verifying transaction:', error);
+            return false;
+        }
+    };
+
     const handlePayment = async () => {
         if (!wallet || !paymentParams) return;
 
@@ -73,41 +199,31 @@ export const PaymentForm = () => {
             const result = await tonConnectUI.sendTransaction(transaction);
             const txHash = result.boc;
             
+            // Transaction'ı doğrula - orderId'yi de gönder
+            const isValid = await verifyTransaction(
+                txHash,
+                paymentParams.amount,
+                paymentParams.address,
+                paymentParams.orderId
+            );
+
+            if (!isValid) {
+                throw new Error('Transaction verification failed');
+            }
+
             setTransactionHash(txHash);
             setPaymentStatus('success');
 
-            const timestamp = Date.now();
-            const data = {
-                status: 'success',
-                orderId: paymentParams.orderId,
-                txHash: txHash,
-                amount: paymentParams.amount,
-                timestamp
-            };
-
-            // HMAC imzası oluştur
-            const webhookData = {
-                data,
-                signature: generateSignature(data, import.meta.env.VITE_WEBHOOK_SECRET || ''),
-                timestamp
-            };
-
-            // Webhook'u backend'e gönder
-            try {
-                await fetch('https://epinbackend-production.up.railway.app/payment/callback', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(webhookData)
-                });
-            } catch (error) {
-                console.error('Callback error:', error);
-            }
+            // Supabase'de transaction durumunu güncelle
+            await updateTransactionStatus(paymentParams.orderId, txHash);
 
             // Telegram Mini App'e bildir
             if ('Telegram' in window && window.Telegram?.WebApp) {
-                window.Telegram.WebApp.sendData(JSON.stringify(webhookData));
+                window.Telegram.WebApp.sendData(JSON.stringify({
+                    status: 'success',
+                    orderId: paymentParams.orderId,
+                    txHash: txHash
+                }));
                 
                 setTimeout(() => {
                     if ('Telegram' in window && window.Telegram?.WebApp) {
@@ -120,31 +236,14 @@ export const PaymentForm = () => {
             console.error('Payment failed:', error);
             setPaymentStatus('failed');
             
-            const timestamp = Date.now();
-            const data = {
-                status: 'failed',
-                orderId: paymentParams.orderId,
-                error: error instanceof Error ? error.message : 'Unknown error occurred',
-                timestamp
-            };
-
-            // Hata durumunda webhook
-            const webhookData = {
-                data,
-                signature: generateSignature(data, import.meta.env.VITE_WEBHOOK_SECRET || ''),
-                timestamp
-            };
-
             if ('Telegram' in window && window.Telegram?.WebApp) {
-                window.Telegram.WebApp.sendData(JSON.stringify(webhookData));
+                window.Telegram.WebApp.sendData(JSON.stringify({
+                    status: 'failed',
+                    orderId: paymentParams.orderId,
+                    error: error instanceof Error ? error.message : 'Unknown error occurred'
+                }));
             }
         }
-    };
-
-    // HMAC imzası oluşturma fonksiyonu
-    const generateSignature = (data: any, secretKey: string): string => {
-        const message = JSON.stringify(data);
-        return CryptoJS.HmacSHA256(message, secretKey).toString();
     };
 
     const handleWalletAction = () => {

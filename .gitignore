@@ -26,3 +26,9 @@ yarn-error.log*
 .idea
 .vscode
 .vercel
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
