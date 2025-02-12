@@ -44,6 +44,8 @@ interface TelegramWebApp {
     isExpanded: boolean;
     viewportHeight: number;
     viewportStableHeight: number;
+    enableClosingConfirmation: () => void;
+    disableClosingConfirmation: () => void;
     initData: string;
     initDataUnsafe: {
         query_id: string;
