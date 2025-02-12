@@ -79,21 +79,83 @@ export const PaymentForm = () => {
         }
     }, [wallet, tonConnectUI]);
 
-    // Telegram WebApp'i başlat
+    // Telegram WebApp'i başlat ve tema ayarlarını yap
     useEffect(() => {
-        const webApp = window.Telegram?.WebApp;
-        if (webApp) {
-            webApp.ready();
-            webApp.expand(); // WebApp'i tam ekran yap
-            webApp.enableClosingConfirmation(); // Kapatma onayını aktif et
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            // Mini App'i hazırla
+            tg.ready();
             
+            // Tam ekran yap
+            tg.expand();
+            
+            // Kapatma onayını aktifleştir
+            tg.enableClosingConfirmation();
+
+            // Ana butonu ayarla
+            tg.MainButton.text = "Connect Wallet";
+            tg.MainButton.color = "#2d4052";
+            tg.MainButton.textColor = "#ffffff";
+            tg.MainButton.show();
+
+            // Ana buton tıklama olayı
+            tg.MainButton.onClick(() => {
+                if (!wallet) {
+                    tonConnectUI.openModal();
+                } else {
+                    handlePayment();
+                }
+            });
+
             // Tema renklerini ayarla
-            if (webApp.backgroundColor && webApp.textColor) {
-                document.documentElement.style.setProperty('--tg-theme-bg-color', webApp.backgroundColor);
-                document.documentElement.style.setProperty('--tg-theme-text-color', webApp.textColor);
+            if (tg.themeParams) {
+                document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
+                document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
+                document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color);
+                document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color);
             }
         }
     }, []);
+
+    // Wallet durumu değiştiğinde MainButton'ı güncelle
+    useEffect(() => {
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            if (wallet) {
+                tg.MainButton.text = "Send Payment";
+                tg.MainButton.color = "#66aaeee8";
+            } else {
+                tg.MainButton.text = "Connect Wallet";
+                tg.MainButton.color = "#2d4052";
+            }
+        }
+    }, [wallet]);
+
+    // Payment status değiştiğinde MainButton'ı güncelle
+    useEffect(() => {
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            switch (paymentStatus) {
+                case 'pending':
+                    tg.MainButton.showProgress(true);
+                    tg.MainButton.disable();
+                    break;
+                case 'success':
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.hide();
+                    // 2 saniye sonra Mini App'i kapat
+                    setTimeout(() => tg.close(), 2000);
+                    break;
+                case 'failed':
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+                    break;
+                default:
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+            }
+        }
+    }, [paymentStatus]);
 
     // Transaction durumunu güncelle
     const updateTransactionStatus = async (orderId: string, txHash: string) => {
@@ -216,8 +278,8 @@ export const PaymentForm = () => {
         if (!wallet || !paymentParams) return;
 
         try {
+            const tg = window.Telegram?.WebApp;
             setPaymentStatus('pending');
-            console.log('Starting payment process...');
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -249,52 +311,39 @@ export const PaymentForm = () => {
 
             console.log('Transaction verification result:', isValid);
 
-            if (!isValid) {
-                throw new Error('Transaction verification failed');
-            }
+            if (isValid) {
+                setTransactionHash(txHash);
+                setPaymentStatus('success');
 
-            setTransactionHash(txHash);
-            setPaymentStatus('success');
+                // Supabase'de güncelle
+                await updateTransactionStatus(paymentParams.orderId, txHash);
 
-            // Supabase'de transaction durumunu güncelle
-            await updateTransactionStatus(paymentParams.orderId, txHash);
-
-            // Telegram Mini App'e bildir
-            const webApp = window.Telegram?.WebApp;
-            if (webApp) {
-                const resultData = {
-                    status: 'success',
-                    orderId: paymentParams.orderId,
-                    txHash: txHash
-                };
-                console.log('Sending result to Telegram:', resultData);
-                webApp.sendData(JSON.stringify(resultData));
-                
-                setTimeout(() => {
-                    webApp.close();
-                }, 2000);
+                // Telegram'a başarılı sonucu gönder
+                if (tg) {
+                    tg.sendData(JSON.stringify({
+                        status: 'success',
+                        orderId: paymentParams.orderId,
+                        txHash: txHash,
+                        amount: paymentParams.amount,
+                        productName: paymentParams.productName,
+                        epin: paymentParams.epin
+                    }));
+                }
             }
 
         } catch (error) {
-            console.error('Detailed payment error:', error);
+            console.error('Payment error:', error);
             setPaymentStatus('failed');
             
-            const webApp = window.Telegram?.WebApp;
-            if (webApp) {
-                webApp.sendData(JSON.stringify({
+            // Telegram'a hata sonucunu gönder
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.sendData(JSON.stringify({
                     status: 'failed',
                     orderId: paymentParams.orderId,
                     error: error instanceof Error ? error.message : 'Unknown error occurred'
                 }));
             }
-        }
-    };
-
-    const handleWalletAction = () => {
-        if (wallet) {
-            tonConnectUI.disconnect();
-        } else {
-            tonConnectUI.openModal();
         }
     };
 
@@ -312,17 +361,22 @@ export const PaymentForm = () => {
     return (
         <div className="payment-form">
             <div className="transaction-info">
-                <h3>Transaction Details</h3>
+                <h3>{paymentParams?.productName || 'Payment Details'}</h3>
                 <div className="info-row">
                     <span>Amount:</span>
                     <span>{paymentParams?.amount} TON</span>
                 </div>
+                {paymentParams?.epin && (
+                    <div className="info-row">
+                        <span>E-PIN:</span>
+                        <span className="comment">{paymentParams.epin}</span>
+                    </div>
+                )}
                 <div className="info-row">
-                    <span>To Address:</span>
+                    <span>To:</span>
                     <span className="address">{paymentParams?.address}</span>
                 </div>
                 
-                {/* Ödeme durumu gösterimi */}
                 {paymentStatus && (
                     <div className={`status-message ${paymentStatus}`}>
                         {paymentStatus === 'pending' && <p>Processing payment...</p>}
@@ -338,24 +392,6 @@ export const PaymentForm = () => {
                         )}
                         {paymentStatus === 'failed' && <p>Payment Failed. Please try again.</p>}
                     </div>
-                )}
-            </div>
-
-            <div className="action-buttons">
-                <button 
-                    className={`wallet-button ${wallet ? 'connected' : ''}`}
-                    onClick={handleWalletAction}
-                >
-                    {wallet ? 'Disconnect Wallet' : 'Connect Wallet'}
-                </button>
-                
-                {wallet && !['success', 'pending'].includes(paymentStatus || '') && (
-                    <button 
-                        className="send-button"
-                        onClick={handlePayment}
-                    >
-                        Send Transaction
-                    </button>
                 )}
             </div>
         </div>
