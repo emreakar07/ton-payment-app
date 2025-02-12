@@ -41,6 +41,19 @@ export const PaymentForm = () => {
         }
     }, []);
 
+    // Otomatik disconnect için useEffect
+    useEffect(() => {
+        if (wallet) {
+            // 5 dakika sonra otomatik disconnect
+            const disconnectTimeout = setTimeout(() => {
+                tonConnectUI.disconnect();
+            }, 5 * 60 * 1000); // 5 dakika
+
+            // Component unmount olduğunda veya wallet değiştiğinde timeout'u temizle
+            return () => clearTimeout(disconnectTimeout);
+        }
+    }, [wallet, tonConnectUI]);
+
     const handlePayment = async () => {
         if (!wallet || !paymentParams) return;
 
