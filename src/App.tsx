@@ -43,15 +43,16 @@ function App() {
                 imageUrl: "https://wallet.tg/images/logo-288.png",
                 aboutUrl: "https://wallet.tg/",
                 universalLink: "https://t.me/wallet",
-                bridgeUrl: "https://bridge.ton.space",
+                bridgeUrl: "https://bridge.wallet.tg/bridge",
                 jsBridgeKey: "telegram-wallet",
-                platforms: ["ios", "android", "macos", "windows", "linux"]
+                platforms: ["ios", "android"]
               }
             ]
           }}
-          actionsConfiguration={{
-              twaReturnUrl: 'https://t.me/electronicpinbot',
-              returnStrategy: 'back'
+          connectRequestParameters={{
+              state: 'ready',
+              returnStrategy: 'back',
+              twaReturnUrl: 'https://t.me/electronicpinbot'
           }}
       >
         <div className="app">

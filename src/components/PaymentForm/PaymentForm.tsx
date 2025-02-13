@@ -117,19 +117,48 @@ export const PaymentForm = () => {
         }
     }, []);
 
-    const handleWalletAction = () => {
+    const handleWalletAction = async () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
             tonConnectUI.disconnect();
         } else {
-            console.log('Opening wallet modal...');
-            tonConnectUI.openModal().then(() => {
-                console.log('Modal opened');
-            }).catch(error => {
-                console.error('Modal error:', error);
-            });
+            try {
+                // Önce mevcut bağlantıyı temizle
+                await tonConnectUI.disconnect();
+                
+                // Yeni bağlantı isteği
+                const result = await tonConnectUI.connectWallet();
+                console.log('Connection result:', result);
+                
+                // Bağlantı başarılıysa state'i güncelle
+                if (result) {
+                    // Telegram'a başarılı bağlantı bilgisi gönder
+                    tg?.sendData(JSON.stringify({
+                        event: 'wallet_connected',
+                        address: result.account.address
+                    }));
+                }
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+            }
         }
     };
+
+    // Wallet state'ini izle
+    useEffect(() => {
+        if (wallet) {
+            console.log('Wallet connected:', wallet);
+        } else {
+            console.log('Wallet disconnected');
+        }
+    }, [wallet]);
+
+    // Component unmount olduğunda bağlantıyı temizle
+    useEffect(() => {
+        return () => {
+            tonConnectUI.disconnect();
+        };
+    }, []);
 
     const handlePayment = async () => {
         if (!wallet || !paymentParams) return;
