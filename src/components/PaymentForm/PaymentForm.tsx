@@ -68,6 +68,20 @@ declare global {
                 };
                 platform: string;
                 sendData: (data: string) => void;
+                showPopup: (params: {
+                    title?: string;
+                    message: string;
+                    buttons?: Array<{
+                        id?: string;
+                        type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive';
+                        text?: string;
+                    }>;
+                }) => void;
+                CloudStorage: {
+                    setItem: (key: string, value: string) => Promise<void>;
+                    getItem: (key: string) => Promise<string | null>;
+                    removeItem: (key: string) => Promise<void>;
+                };
                 themeParams: {
                     bg_color: string;
                     text_color: string;
