@@ -207,7 +207,7 @@ export const PaymentForm = () => {
             await tonConnectUI.disconnect();
             
             // Yeni bağlantı için promise
-            const connectionPromise = new Promise((resolve, reject) => {
+            const connectionPromise = new Promise<ConnectedWallet>((resolve, reject) => {
                 let isResolved = false;
                 
                 // Status değişikliklerini dinle
@@ -216,7 +216,7 @@ export const PaymentForm = () => {
                     if (w && !isResolved) {
                         isResolved = true;
                         unsubscribe();
-                        resolve(w);
+                        resolve(w as ConnectedWallet);
                     }
                 });
 
@@ -246,7 +246,7 @@ export const PaymentForm = () => {
             console.log('Wallet connected:', connectedWallet);
 
             // Bağlantı başarılı olduysa
-            if (connectedWallet) {
+            if (connectedWallet && connectedWallet.account) {
                 // Local storage'a kaydet
                 localStorage.setItem('wallet_connection', JSON.stringify({
                     connected: true,
