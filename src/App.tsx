@@ -40,8 +40,7 @@ function App() {
               twaReturnUrl: 'https://t.me/electronicpinbot',
               returnStrategy: 'none',
               modals: ['before', 'success', 'error'],
-              skipRedirectToWallet: 'never',
-              disableEventsWarning: true
+              skipRedirectToWallet: 'never'
           }}
       >
         <div className="app">

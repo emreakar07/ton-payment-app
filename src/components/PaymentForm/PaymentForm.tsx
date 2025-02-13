@@ -86,27 +86,6 @@ export const PaymentForm = () => {
         }));
     };
 
-    // Bağlantı durumunu kontrol et
-    useEffect(() => {
-        const checkStoredConnection = async () => {
-            const stored = localStorage.getItem('wallet_connection');
-            if (stored) {
-                const { connected, address } = JSON.parse(stored);
-                if (connected && !wallet) {
-                    try {
-                        // Otomatik yeniden bağlan
-                        await tonConnectUI.connectWallet();
-                    } catch (error) {
-                        console.error('Auto reconnect failed:', error);
-                        localStorage.removeItem('wallet_connection');
-                    }
-                }
-            }
-        };
-
-        checkStoredConnection();
-    }, []);
-
     // Telegram WebApp başlatma ve cüzdan bağlantısı kontrolü
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
@@ -153,6 +132,13 @@ export const PaymentForm = () => {
                             
                             // Bağlantı durumunu kaydet
                             saveConnectionState(wallet.account.address);
+
+                            // Mini App'i yeniden yükle
+                            if (tg) {
+                                tg.MainButton.setText('Processing...');
+                                tg.MainButton.disable();
+                                window.location.reload();
+                            }
                         }
                     });
                 });
@@ -161,17 +147,11 @@ export const PaymentForm = () => {
                     setTimeout(() => reject(new Error('Connection timeout')), 30000);
                 });
 
-                const connectedWallet = await Promise.race([
+                await Promise.race([
                     walletConnectionPromise,
                     timeoutPromise
-                ]) as any;
+                ]);
 
-                if (tg && connectedWallet) {
-                    tg.sendData(JSON.stringify({
-                        event: 'wallet_connected',
-                        address: connectedWallet.account.address
-                    }));
-                }
             } catch (error) {
                 console.error('Wallet connection error:', error);
                 setPaymentStatus('failed');
@@ -180,23 +160,37 @@ export const PaymentForm = () => {
         }
     };
 
-    // Wallet state değişimlerini izle
+    // Sayfa yüklendiğinde bağlantıyı kontrol et
     useEffect(() => {
-        const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
-            if (wallet) {
-                console.log('Wallet connected:', wallet);
-                setPaymentStatus(null);
-                saveConnectionState(wallet.account.address);
-            } else {
-                console.log('Wallet disconnected');
-                localStorage.removeItem('wallet_connection');
+        const checkConnection = async () => {
+            const stored = localStorage.getItem('wallet_connection');
+            if (stored) {
+                try {
+                    const { connected } = JSON.parse(stored);
+                    if (connected && !wallet) {
+                        console.log('Attempting to restore connection...');
+                        await tonConnectUI.connectWallet();
+                    }
+                } catch (error) {
+                    console.error('Failed to restore connection:', error);
+                    localStorage.removeItem('wallet_connection');
+                }
             }
-        });
-
-        return () => {
-            unsubscribe();
         };
-    }, [tonConnectUI]);
+
+        checkConnection();
+    }, []);
+
+    // Bağlantı durumunu sürekli izle
+    useEffect(() => {
+        if (wallet) {
+            console.log('Wallet connected:', wallet);
+            saveConnectionState(wallet.account.address);
+        } else {
+            console.log('No wallet connected');
+            localStorage.removeItem('wallet_connection');
+        }
+    }, [wallet]);
 
     // TonConnect UI'ın hazır olduğundan emin ol
     useEffect(() => {
