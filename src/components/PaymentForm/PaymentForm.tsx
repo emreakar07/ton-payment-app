@@ -81,6 +81,53 @@ declare global {
     }
 }
 
+// Storage yardımcı fonksiyonları
+const storage = {
+    async setItem(key: string, value: any) {
+        const tg = window.Telegram?.WebApp;
+        if (tg?.CloudStorage) {
+            try {
+                await tg.CloudStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+                console.error('Storage error:', error);
+                // Fallback to localStorage
+                localStorage.setItem(key, JSON.stringify(value));
+            }
+        } else {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+    },
+
+    async getItem(key: string) {
+        const tg = window.Telegram?.WebApp;
+        if (tg?.CloudStorage) {
+            try {
+                const value = await tg.CloudStorage.getItem(key);
+                return value ? JSON.parse(value) : null;
+            } catch (error) {
+                console.error('Storage error:', error);
+                // Fallback to localStorage
+                return JSON.parse(localStorage.getItem(key) || 'null');
+            }
+        }
+        return JSON.parse(localStorage.getItem(key) || 'null');
+    },
+
+    async removeItem(key: string) {
+        const tg = window.Telegram?.WebApp;
+        if (tg?.CloudStorage) {
+            try {
+                await tg.CloudStorage.removeItem(key);
+            } catch (error) {
+                console.error('Storage error:', error);
+                localStorage.removeItem(key);
+            }
+        } else {
+            localStorage.removeItem(key);
+        }
+    }
+};
+
 export const PaymentForm = () => {
     const [tonConnectUI] = useTonConnectUI();
     const wallet = useTonWallet();
@@ -90,12 +137,14 @@ export const PaymentForm = () => {
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
     const [isTelegramClient, setIsTelegramClient] = useState(false);
 
-    // Bağlantı durumunu localStorage'da sakla
-    const saveConnectionState = (address: string) => {
-        localStorage.setItem('wallet_connection', JSON.stringify({
+    // Bağlantı durumunu kaydet
+    const saveConnectionState = async (address: string) => {
+        await storage.setItem('wallet_connection', {
             connected: true,
-            address: address
-        }));
+            address: address,
+            timestamp: Date.now()
+        });
+        console.log('Connection state saved:', address);
     };
 
     // Telegram WebApp başlatma ve cüzdan bağlantısı kontrolü
@@ -126,81 +175,99 @@ export const PaymentForm = () => {
         }
     }, []);
 
-    // Cüzdan bağlantı yönetimi
+    // Bağlantı yönetimi
     const handleWalletAction = async () => {
         const tg = window.Telegram?.WebApp;
+        console.log('Current wallet state:', wallet);
+        
         if (wallet) {
+            console.log('Disconnecting wallet...');
             await tonConnectUI.disconnect();
-            localStorage.removeItem('wallet_connection');
+            await storage.removeItem('wallet_connection');
         } else {
             try {
-                // Önce mevcut bağlantıyı temizle
-                await tonConnectUI.disconnect();
+                console.log('Connecting wallet...');
+                // Modal'ı aç
+                await tonConnectUI.openModal();
                 
-                // Bağlantı işlemini başlat
-                const result = await tonConnectUI.connectWallet();
-                console.log('Connection result:', result);
+                // Bağlantı durumunu izle
+                const result = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        unsubscribe();
+                        reject(new Error('Connection timeout'));
+                    }, 30000);
 
-                // Bağlantı başarılı olduysa
+                    const unsubscribe = tonConnectUI.onStatusChange((w) => {
+                        if (w) {
+                            clearTimeout(timeout);
+                            unsubscribe();
+                            resolve(w);
+                        }
+                    });
+                });
+
+                console.log('Connection successful:', result);
+                
                 if (result) {
-                    saveConnectionState(result.account.address);
+                    await saveConnectionState(result.account.address);
                     
-                    // Telegram'a başarılı bağlantı bilgisi gönder
+                    // Mini App'i yeniden yüklemeden önce kullanıcıya bilgi ver
                     if (tg) {
-                        tg.MainButton.setText('Processing...');
-                        tg.MainButton.disable();
-                        
-                        // Kısa bir gecikme sonra sayfayı yenile
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
+                        tg.showPopup({
+                            title: 'Wallet Connected',
+                            message: 'Your wallet has been connected successfully!',
+                            buttons: [{
+                                type: 'ok'
+                            }]
+                        });
                     }
                 }
             } catch (error) {
                 console.error('Wallet connection error:', error);
                 setPaymentStatus('failed');
-                localStorage.removeItem('wallet_connection');
+                await storage.removeItem('wallet_connection');
+                
+                if (tg) {
+                    tg.showPopup({
+                        title: 'Connection Error',
+                        message: 'Failed to connect wallet. Please try again.',
+                        buttons: [{
+                            type: 'ok'
+                        }]
+                    });
+                }
             }
         }
     };
 
-    // Bağlantı durumunu izle
-    useEffect(() => {
-        const unsubscribe = tonConnectUI.onStatusChange(async (w) => {
-            if (w) {
-                console.log('Wallet connected:', w);
-                saveConnectionState(w.account.address);
-                setPaymentStatus(null);
-            } else {
-                console.log('Wallet disconnected');
-                localStorage.removeItem('wallet_connection');
-            }
-        });
-
-        return () => {
-            unsubscribe();
-        };
-    }, [tonConnectUI]);
-
-    // Sayfa yüklendiğinde bağlantıyı kontrol et
+    // Bağlantı durumunu kontrol et
     useEffect(() => {
         const checkConnection = async () => {
             try {
-                const stored = localStorage.getItem('wallet_connection');
-                if (stored) {
-                    const { connected } = JSON.parse(stored);
-                    if (connected && !wallet) {
-                        await tonConnectUI.connectWallet();
-                    }
+                const stored = await storage.getItem('wallet_connection');
+                console.log('Stored connection:', stored);
+                
+                if (stored?.connected && !wallet) {
+                    console.log('Attempting to restore connection...');
+                    await tonConnectUI.connectWallet();
                 }
             } catch (error) {
-                console.error('Failed to restore connection:', error);
-                localStorage.removeItem('wallet_connection');
+                console.error('Connection check error:', error);
+                await storage.removeItem('wallet_connection');
             }
         };
 
         checkConnection();
     }, []);
+
+    // Wallet durumu değişikliklerini izle
+    useEffect(() => {
+        console.log('Wallet state changed:', wallet);
+        
+        if (wallet) {
+            saveConnectionState(wallet.account.address);
+        }
+    }, [wallet]);
 
     // Ödeme işlemi
     const handlePayment = async () => {
