@@ -39,8 +39,8 @@ function App() {
           actionsConfiguration={{
               twaReturnUrl: 'https://t.me/electronicpinbot',
               returnStrategy: 'back',
-              modals: ['before', 'success', 'error'],
-              skipRedirectToWallet: 'always'
+              modals: ['success', 'error'],
+              skipRedirectToWallet: 'never'
           }}
       >
         <div className="app">

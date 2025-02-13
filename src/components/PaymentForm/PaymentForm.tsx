@@ -200,28 +200,31 @@ export const PaymentForm = () => {
         }
 
         try {
-            // Önce mevcut bağlantıyı temizle
-            await tonConnectUI.disconnect();
+            // Modal'ı aç
+            await tonConnectUI.openModal();
 
-            // Bağlantı işlemini başlat
-            const connectResult = await tonConnectUI.connectWallet();
-            console.log('Connect result:', connectResult);
+            // Bağlantıyı bekle
+            let isConnected = false;
+            let attempts = 0;
+            const maxAttempts = 10;
 
-            // Bağlantı durumunu kontrol et
-            const checkConnection = async (retries = 5) => {
-                for (let i = 0; i < retries; i++) {
+            const checkConnection = async () => {
+                while (!isConnected && attempts < maxAttempts) {
+                    attempts++;
+                    console.log(`Checking connection attempt ${attempts}...`);
+
                     const currentWallet = tonConnectUI.wallet;
-                    console.log(`Connection check attempt ${i + 1}:`, currentWallet);
-                    
                     if (currentWallet) {
-                        // Bağlantı başarılı
+                        isConnected = true;
+                        console.log('Wallet connected:', currentWallet);
+                        
+                        // Bağlantı bilgilerini kaydet
                         localStorage.setItem('wallet_connection', JSON.stringify({
                             connected: true,
-                            address: currentWallet.account.address,
                             timestamp: Date.now()
                         }));
 
-                        // Başarı mesajı göster
+                        // Başarı mesajını göster
                         if (tg?.showPopup) {
                             await tg.showPopup({
                                 title: 'Success',
@@ -229,33 +232,35 @@ export const PaymentForm = () => {
                                 buttons: [{ type: 'ok' }]
                             });
                         }
-                        return true;
+
+                        // Sayfayı yenile
+                        window.location.reload();
+                        return;
                     }
 
                     // 2 saniye bekle
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
-                return false;
+
+                // Bağlantı başarısız olduysa hata fırlat
+                if (!isConnected) {
+                    throw new Error('Connection timeout');
+                }
             };
 
-            const isConnected = await checkConnection();
-            
-            if (!isConnected) {
-                throw new Error('Connection timeout');
-            }
-
-            // Sayfayı yenile
-            window.location.reload();
+            // Bağlantı kontrolünü başlat
+            await checkConnection();
 
         } catch (error) {
             console.error('Connection error:', error);
             localStorage.removeItem('wallet_connection');
             setPaymentStatus('failed');
 
+            // Hata mesajını göster
             if (tg?.showPopup) {
                 tg.showPopup({
-                    title: 'Error',
-                    message: 'Failed to connect wallet. Please try again.',
+                    title: 'Connection Error',
+                    message: 'Could not connect to wallet. Please try again.',
                     buttons: [{ type: 'ok' }]
                 });
             }
