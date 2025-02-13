@@ -80,150 +80,47 @@ export const PaymentForm = () => {
 
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
-        
-        // Telegram WebApp kontrolü
+        if (wallet) {
+            tonConnectUI.disconnect();
+        } else {
+            // Sadece modal'ı aç, fazla karışmayalım
+            tonConnectUI.openModal();
+        }
+    }, [wallet, tonConnectUI]);
+
+    useEffect(() => {
+        const tg = window.Telegram?.WebApp;
         if (!tg) {
             setIsValidAccess(false);
             return;
         }
 
-        // WebApp'i hazırla
         tg.ready();
         tg.expand();
         setIsTelegramClient(true);
 
         try {
-            // URL'den parametreleri al
             const urlParams = new URLSearchParams(window.location.search);
             const startParam = urlParams.get('start_param');
             
             if (startParam) {
                 const paymentData = JSON.parse(decodeURIComponent(startParam));
-                
-                setPaymentParams({
-                    amount: paymentData.amount,
-                    address: paymentData.address,
-                    orderId: paymentData.orderId,
-                    productName: paymentData.productName,
-                    epin: paymentData.epin
-                });
+                setPaymentParams(paymentData);
                 setIsValidAccess(true);
-
-                // Ana butonu ayarla
-                tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
-                tg.MainButton.show();
-                tg.MainButton.onClick(() => {
-                    if (!wallet) {
-                        handleWalletAction();
-                    } else {
-                        handlePayment();
-                    }
-                });
-
-                // BackButton'ı ayarla
-                tg.BackButton.show();
-                tg.BackButton.onClick(() => tg.close());
             }
         } catch (error) {
             console.error('Error parsing payment data:', error);
             setIsValidAccess(false);
         }
-    }, [wallet]);
-
-    // Payment status değiştiğinde MainButton'ı güncelle
-    useEffect(() => {
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            switch (paymentStatus) {
-                case 'pending':
-                    tg.MainButton.showProgress(true);
-                    tg.MainButton.disable();
-                    break;
-                case 'success':
-                    tg.MainButton.hideProgress();
-                    tg.MainButton.hide();
-                    // İşlem başarılı olduğunda veriyi gönder ve kapat
-                    if (transactionHash) {
-                        tg.sendData(JSON.stringify({
-                            status: 'success',
-                            orderId: paymentParams?.orderId,
-                            txHash: transactionHash
-                        }));
-                        setTimeout(() => tg.close(), 2000);
-                    }
-                    break;
-                case 'failed':
-                    tg.MainButton.hideProgress();
-                    tg.MainButton.enable();
-                    tg.MainButton.setText('TRY AGAIN');
-                    break;
-                default:
-                    tg.MainButton.hideProgress();
-                    tg.MainButton.enable();
-                    tg.MainButton.setText(wallet ? 'SEND PAYMENT' : 'CONNECT WALLET');
-            }
-        }
-    }, [paymentStatus, wallet, transactionHash, paymentParams]);
-
-    // Wallet durumu değiştiğinde MainButton'ı güncelle
-    useEffect(() => {
-        const tg = window.Telegram?.WebApp;
-        if (tg && isValidAccess) {
-            if (wallet) {
-                tg.MainButton.setText('SEND PAYMENT');
-                tg.MainButton.show();
-                tg.MainButton.enable();
-            } else {
-                tg.MainButton.setText('CONNECT WALLET');
-                tg.MainButton.show();
-                tg.MainButton.enable();
-            }
-        }
-    }, [wallet, isValidAccess]);
-
-    // MainButton click handler'ını ayrı bir useEffect'te yönetelim
-    useEffect(() => {
-        const tg = window.Telegram?.WebApp;
-        if (tg && isValidAccess) {
-            const handleMainButtonClick = () => {
-                if (!wallet) {
-                    handleWalletAction();
-                } else {
-                    handlePayment();
-                }
-            };
-
-            tg.MainButton.onClick(handleMainButtonClick);
-
-            // Cleanup
-            return () => {
-                tg.MainButton.offClick(handleMainButtonClick);
-            };
-        }
-    }, [wallet, isValidAccess]);
+    }, []);
 
     const handleWalletAction = () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
             tonConnectUI.disconnect();
         } else {
-            // Telegram Mini App içindeyse
-            if (tg && (tg.platform === 'tdesktop' || tg.platform === 'android' || tg.platform === 'ios')) {
-                // Modal'ı aç ve Telegram Wallet'ı seç
-                tonConnectUI.openModal().then(() => {
-                    // Modal açıldıktan sonra Telegram Wallet'ı otomatik seç
-                    const modalElement = document.querySelector('.tc-connect-modal');
-                    if (modalElement) {
-                        // Telegram Wallet butonunu bul ve tıkla
-                        const telegramWalletButton = modalElement.querySelector('[data-app-name="telegram-wallet"]') as HTMLElement;
-                        if (telegramWalletButton) {
-                            telegramWalletButton.click();
-                        }
-                    }
-                });
-            } else {
-                tonConnectUI.openModal();
-            }
+            // Sadece modal'ı aç, fazla karışmayalım
+            tonConnectUI.openModal();
         }
     };
 
