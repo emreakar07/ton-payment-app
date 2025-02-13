@@ -28,6 +28,18 @@ interface TelegramWebAppData {
     };
 }
 
+interface ConnectedWallet {
+    account: {
+        address: string;
+        chain: string;
+        publicKey: string;
+    };
+    device: {
+        platform: string;
+        appName: string;
+    };
+}
+
 declare global {
     interface Window {
         Telegram?: {
@@ -122,25 +134,21 @@ export const PaymentForm = () => {
             localStorage.removeItem('wallet_connection');
         } else {
             try {
-                // Önce mevcut bağlantıyı temizle
                 await tonConnectUI.disconnect();
-                
-                // Modal'ı aç
                 await tonConnectUI.openModal();
 
-                // Bağlantıyı bekle
-                const walletConnectionPromise = new Promise((resolve, reject) => {
+                const walletConnectionPromise = new Promise<ConnectedWallet>((resolve, reject) => {
                     let attempts = 0;
                     const maxAttempts = 5;
                     
                     const checkConnection = () => {
                         attempts++;
-                        const currentWallet = tonConnectUI.wallet;
+                        const currentWallet = tonConnectUI.wallet as ConnectedWallet | null;
                         
                         if (currentWallet) {
                             resolve(currentWallet);
                         } else if (attempts < maxAttempts) {
-                            setTimeout(checkConnection, 2000); // 2 saniye bekle
+                            setTimeout(checkConnection, 2000);
                         } else {
                             reject(new Error('Connection attempts exceeded'));
                         }
@@ -149,15 +157,14 @@ export const PaymentForm = () => {
                     const unsubscribe = tonConnectUI.onStatusChange((w) => {
                         if (w) {
                             unsubscribe();
-                            resolve(w);
+                            resolve(w as ConnectedWallet);
                         }
                     });
 
                     checkConnection();
                 });
 
-                // 60 saniye timeout (artırılmış süre)
-                const timeoutPromise = new Promise((_, reject) => {
+                const timeoutPromise = new Promise<never>((_, reject) => {
                     setTimeout(() => reject(new Error('Connection timeout')), 60000);
                 });
 
@@ -170,12 +177,10 @@ export const PaymentForm = () => {
                     console.log('Connected wallet:', connectedWallet);
                     saveConnectionState(connectedWallet.account.address);
                     
-                    // Mini App'i yeniden yükle
                     if (tg) {
                         tg.MainButton.setText('Processing...');
                         tg.MainButton.disable();
                         
-                        // Kısa bir gecikme ekle
                         setTimeout(() => {
                             window.location.reload();
                         }, 1000);
