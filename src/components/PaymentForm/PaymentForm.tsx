@@ -194,100 +194,59 @@ export const PaymentForm = () => {
         const tg = window.Telegram?.WebApp;
         
         if (wallet) {
-            console.log('Disconnecting wallet...');
             await tonConnectUI.disconnect();
             localStorage.removeItem('wallet_connection');
             return;
         }
 
         try {
-            console.log('Starting wallet connection...');
-            
-            // Önce mevcut bağlantıyı temizle
-            await tonConnectUI.disconnect();
-            
-            // Yeni bağlantı için promise
-            const connectionPromise = new Promise<ConnectedWallet>((resolve, reject) => {
-                let isResolved = false;
-                
-                // Status değişikliklerini dinle
-                const unsubscribe = tonConnectUI.onStatusChange((w) => {
-                    console.log('Status changed:', w);
-                    if (w && !isResolved) {
-                        isResolved = true;
-                        unsubscribe();
-                        resolve(w as ConnectedWallet);
-                    }
-                });
-
-                // Modal'ı aç
-                tonConnectUI.openModal()
-                    .catch(error => {
-                        console.error('Modal open error:', error);
-                        if (!isResolved) {
-                            isResolved = true;
-                            unsubscribe();
-                            reject(error);
-                        }
-                    });
-
-                // 30 saniye timeout
-                setTimeout(() => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        unsubscribe();
-                        reject(new Error('Connection timeout'));
-                    }
-                }, 30000);
-            });
+            // Önce modal'ı aç
+            await tonConnectUI.openModal();
 
             // Bağlantıyı bekle
-            const connectedWallet = await connectionPromise;
-            console.log('Wallet connected:', connectedWallet);
+            await new Promise<void>((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                const checkWallet = () => {
+                    const currentWallet = tonConnectUI.wallet;
+                    console.log('Checking wallet:', currentWallet);
+                    
+                    if (currentWallet) {
+                        resolve();
+                    } else if (attempts < maxAttempts) {
+                        attempts++;
+                        setTimeout(checkWallet, 2000);
+                    } else {
+                        reject(new Error('Connection failed'));
+                    }
+                };
 
-            // Bağlantı başarılı olduysa
-            if (connectedWallet && connectedWallet.account) {
-                // Local storage'a kaydet
+                checkWallet();
+            });
+
+            // Bağlantı başarılı
+            if (tonConnectUI.wallet) {
                 localStorage.setItem('wallet_connection', JSON.stringify({
                     connected: true,
-                    address: connectedWallet.account.address,
                     timestamp: Date.now()
                 }));
 
-                // UI'ı güncelle
+                // Telegram UI feedback
                 if (tg?.showPopup) {
                     tg.showPopup({
                         title: 'Success',
                         message: 'Wallet connected successfully',
-                        buttons: [{
-                            type: 'ok',
-                            text: 'Continue'
-                        }]
+                        buttons: [{ type: 'ok' }]
                     });
                 }
 
                 // Sayfayı yenile
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                window.location.reload();
             }
 
         } catch (error) {
             console.error('Connection error:', error);
-            
-            // Hata durumunda UI'ı güncelle
-            if (tg?.showPopup) {
-                tg.showPopup({
-                    title: 'Error',
-                    message: 'Failed to connect wallet. Please try again.',
-                    buttons: [{
-                        type: 'ok',
-                        text: 'Close'
-                    }]
-                });
-            }
-            
-            // State'i temizle
             localStorage.removeItem('wallet_connection');
             setPaymentStatus('failed');
         }
