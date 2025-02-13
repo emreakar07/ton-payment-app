@@ -52,11 +52,7 @@ function App() {
           actionsConfiguration={{
               twaReturnUrl: 'https://t.me/electronicpinbot',
               returnStrategy: 'back',
-              modals: {
-                  connect: {
-                      state: 'ready'
-                  }
-              }
+              modals: ['before', 'success', 'error']
           }}
       >
         <div className="app">
