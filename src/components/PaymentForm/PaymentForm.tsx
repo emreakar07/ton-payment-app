@@ -209,27 +209,18 @@ export const PaymentForm = () => {
         } else {
             // Telegram Mini App içindeyse
             if (tg && (tg.platform === 'tdesktop' || tg.platform === 'android' || tg.platform === 'ios')) {
-                // Modal açılmadan önce butonu gizle
-                tg.MainButton.hide();
-                
-                // Wallet modal'ını aç
-                tonConnectUI.openModal();
-
-                // Modal kapandığında butonu tekrar göster
-                const checkWalletInterval = setInterval(() => {
+                // Modal'ı aç ve Telegram Wallet'ı seç
+                tonConnectUI.openModal().then(() => {
+                    // Modal açıldıktan sonra Telegram Wallet'ı otomatik seç
                     const modalElement = document.querySelector('.tc-connect-modal');
-                    if (!modalElement) {
-                        clearInterval(checkWalletInterval);
-                        // Modal kapandıysa ve wallet bağlıysa
-                        if (wallet) {
-                            tg.MainButton.setText('SEND PAYMENT');
-                        } else {
-                            tg.MainButton.setText('CONNECT WALLET');
+                    if (modalElement) {
+                        // Telegram Wallet butonunu bul ve tıkla
+                        const telegramWalletButton = modalElement.querySelector('[data-app-name="telegram-wallet"]') as HTMLElement;
+                        if (telegramWalletButton) {
+                            telegramWalletButton.click();
                         }
-                        tg.MainButton.show();
-                        tg.MainButton.enable();
                     }
-                }, 500);
+                });
             } else {
                 tonConnectUI.openModal();
             }
