@@ -111,45 +111,86 @@ export const PaymentForm = () => {
     const handleWalletAction = async () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
-            tonConnectUI.disconnect();
+            await tonConnectUI.disconnect();
         } else {
             try {
-                // Önce mevcut bağlantıyı temizle
-                await tonConnectUI.disconnect();
+                // Modal'ı aç
+                await tonConnectUI.openModal();
                 
-                // Yeni bağlantı isteği
-                const result = await tonConnectUI.connectWallet();
-                console.log('Connection result:', result);
-                
-                // Bağlantı başarılıysa state'i güncelle
-                if (result) {
-                    // Telegram'a başarılı bağlantı bilgisi gönder
-                    tg?.sendData(JSON.stringify({
+                // Bağlantıyı bekle
+                const walletConnectionPromise = new Promise((resolve) => {
+                    const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
+                        if (wallet) {
+                            unsubscribe();
+                            resolve(wallet);
+                        }
+                    });
+                });
+
+                // 30 saniye timeout
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Connection timeout')), 30000);
+                });
+
+                // Bağlantıyı bekle veya timeout
+                const connectedWallet = await Promise.race([
+                    walletConnectionPromise,
+                    timeoutPromise
+                ]);
+
+                console.log('Wallet connected successfully:', connectedWallet);
+
+                // Telegram'a başarılı bağlantı bilgisi gönder
+                if (tg) {
+                    tg.sendData(JSON.stringify({
                         event: 'wallet_connected',
-                        address: result.account.address
+                        address: wallet?.account.address
                     }));
                 }
+
             } catch (error) {
                 console.error('Wallet connection error:', error);
+                // Bağlantı başarısız olduğunda UI'ı güncelle
+                setPaymentStatus('failed');
             }
         }
     };
 
-    // Wallet state'ini izle
+    // Wallet state değişimlerini daha detaylı izle
     useEffect(() => {
-        if (wallet) {
-            console.log('Wallet connected:', wallet);
-        } else {
-            console.log('Wallet disconnected');
-        }
-    }, [wallet]);
+        const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
+            if (wallet) {
+                console.log('Wallet connected:', wallet);
+                // Bağlantı başarılı olduğunda UI'ı güncelle
+                setPaymentStatus(null);
+            } else {
+                console.log('Wallet disconnected');
+            }
+        });
 
-    // Component unmount olduğunda bağlantıyı temizle
-    useEffect(() => {
         return () => {
-            tonConnectUI.disconnect();
+            unsubscribe();
         };
-    }, []);
+    }, [tonConnectUI]);
+
+    // TonConnect UI'ın hazır olduğundan emin ol
+    useEffect(() => {
+        const checkConnection = async () => {
+            try {
+                const wallets = await tonConnectUI.getWallets();
+                console.log('Available wallets:', wallets);
+                
+                // Eğer önceden bağlı bir cüzdan varsa
+                if (wallet) {
+                    console.log('Existing wallet connection:', wallet);
+                }
+            } catch (error) {
+                console.error('Error checking wallet connection:', error);
+            }
+        };
+
+        checkConnection();
+    }, [tonConnectUI, wallet]);
 
     // Ödeme işlemi
     const handlePayment = async () => {
