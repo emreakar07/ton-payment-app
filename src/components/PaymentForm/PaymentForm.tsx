@@ -136,21 +136,20 @@ export const PaymentForm = () => {
                 const connectedWallet = await Promise.race([
                     walletConnectionPromise,
                     timeoutPromise
-                ]);
+                ]) as any; // Type assertion ekledik
 
                 console.log('Wallet connected successfully:', connectedWallet);
 
                 // Telegram'a başarılı bağlantı bilgisi gönder
-                if (tg) {
+                if (tg && connectedWallet) { // connectedWallet kontrolü ekledik
                     tg.sendData(JSON.stringify({
                         event: 'wallet_connected',
-                        address: wallet?.account.address
+                        address: connectedWallet.account.address // wallet yerine connectedWallet kullanıyoruz
                     }));
                 }
 
             } catch (error) {
                 console.error('Wallet connection error:', error);
-                // Bağlantı başarısız olduğunda UI'ı güncelle
                 setPaymentStatus('failed');
             }
         }
