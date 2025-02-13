@@ -49,10 +49,14 @@ function App() {
               }
             ]
           }}
-          connectRequestParameters={{
-              state: 'ready',
+          actionsConfiguration={{
+              twaReturnUrl: 'https://t.me/electronicpinbot',
               returnStrategy: 'back',
-              twaReturnUrl: 'https://t.me/electronicpinbot'
+              modals: {
+                  connect: {
+                      state: 'ready'
+                  }
+              }
           }}
       >
         <div className="app">
