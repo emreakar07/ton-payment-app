@@ -209,14 +209,23 @@ export const PaymentForm = () => {
                     </div>
                 )}
 
-                <button 
-                    className={`action-button ${paymentStatus === 'pending' ? 'loading' : ''}`}
-                    onClick={wallet ? handlePayment : handleWalletAction}
-                    disabled={paymentStatus === 'pending'}
-                >
-                    {paymentStatus === 'pending' ? 'Processing...' : 
-                     wallet ? 'Send Payment' : 'Connect Wallet'}
-                </button>
+                <div className="button-container">
+                    <button 
+                        className="action-button connect-button"
+                        onClick={handleWalletAction}
+                        disabled={paymentStatus === 'pending'}
+                    >
+                        {wallet ? 'Disconnect Wallet' : 'Connect Wallet'}
+                    </button>
+
+                    <button 
+                        className={`action-button send-button ${!wallet ? 'disabled' : ''} ${paymentStatus === 'pending' ? 'loading' : ''}`}
+                        onClick={handlePayment}
+                        disabled={!wallet || paymentStatus === 'pending'}
+                    >
+                        {paymentStatus === 'pending' ? 'Processing...' : 'Send Transaction'}
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -190,45 +190,68 @@
     }
 }
 
+.button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
 .action-button {
     width: 100%;
     padding: 12px;
-    margin-top: 20px;
     border: none;
     border-radius: 8px;
-    background-color: #0088cc;
-    color: white;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
 
-    &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
+    &.connect-button {
+        background-color: #0088cc;
+        color: white;
 
-    &.loading {
-        position: relative;
-        color: transparent;
-
-        &:after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid white;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: button-loading 0.8s linear infinite;
+        &:hover:not(:disabled) {
+            background-color: #0077b3;
         }
     }
 
-    &:hover:not(:disabled) {
-        background-color: #0077b3;
+    &.send-button {
+        background-color: #28a745;
+        color: white;
+
+        &.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        &:hover:not(:disabled):not(.disabled) {
+            background-color: #218838;
+        }
+
+        &.loading {
+            position: relative;
+            color: transparent;
+
+            &:after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 20px;
+                height: 20px;
+                margin: -10px 0 0 -10px;
+                border: 2px solid white;
+                border-top-color: transparent;
+                border-radius: 50%;
+                animation: button-loading 0.8s linear infinite;
+            }
+        }
+    }
+
+    &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 }
 
