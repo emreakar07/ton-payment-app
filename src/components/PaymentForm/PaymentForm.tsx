@@ -78,19 +78,7 @@ export const PaymentForm = () => {
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
     const [isTelegramClient, setIsTelegramClient] = useState(false);
 
-    useEffect(() => {
-        const tg = window.Telegram?.WebApp;
-        if (wallet) {
-            tonConnectUI.disconnect();
-        } else {
-            tonConnectUI.openModal();
-        }
-    }, [wallet, tonConnectUI]);
-
-    useEffect(() => {
-        console.log('Wallet state changed:', wallet);
-    }, [wallet]);
-
+    // Telegram WebApp başlatma ve cüzdan bağlantısı kontrolü
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
         if (!tg) {
@@ -98,10 +86,12 @@ export const PaymentForm = () => {
             return;
         }
 
+        // Telegram WebApp'i başlat
         tg.ready();
         tg.expand();
         setIsTelegramClient(true);
 
+        // URL parametrelerini kontrol et
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const startParam = urlParams.get('start_param');
@@ -117,6 +107,7 @@ export const PaymentForm = () => {
         }
     }, []);
 
+    // Cüzdan bağlantı yönetimi
     const handleWalletAction = async () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
@@ -160,6 +151,7 @@ export const PaymentForm = () => {
         };
     }, []);
 
+    // Ödeme işlemi
     const handlePayment = async () => {
         if (!wallet || !paymentParams) return;
 
@@ -167,7 +159,7 @@ export const PaymentForm = () => {
             setPaymentStatus('pending');
 
             const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 600,
+                validUntil: Math.floor(Date.now() / 1000) + 600, // 10 dakika
                 messages: [
                     {
                         address: paymentParams.address,

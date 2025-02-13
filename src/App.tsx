@@ -18,19 +18,6 @@ async function enableMocking() {
 enableMocking();
 
 function App() {
-  // Telegram Mini App başlatma
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      // Mini App'i başlat
-      tg.ready();
-      // Tam ekran yap
-      tg.expand();
-      // Kapatma onayını aktifleştir
-      tg.enableClosingConfirmation();
-    }
-  }, []);
-
   return (
       <TonConnectUIProvider
           manifestUrl="https://ton-payment-app.vercel.app/tonconnect-manifest.json"
