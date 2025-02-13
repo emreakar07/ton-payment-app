@@ -122,35 +122,65 @@ export const PaymentForm = () => {
             localStorage.removeItem('wallet_connection');
         } else {
             try {
-                await tonConnectUI.openModal();
+                // Önce mevcut bağlantıyı temizle
+                await tonConnectUI.disconnect();
                 
-                const walletConnectionPromise = new Promise((resolve) => {
-                    const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
-                        if (wallet) {
-                            unsubscribe();
-                            resolve(wallet);
-                            
-                            // Bağlantı durumunu kaydet
-                            saveConnectionState(wallet.account.address);
+                // Modal'ı aç
+                await tonConnectUI.openModal();
 
-                            // Mini App'i yeniden yükle
-                            if (tg) {
-                                tg.MainButton.setText('Processing...');
-                                tg.MainButton.disable();
-                                window.location.reload();
-                            }
+                // Bağlantıyı bekle
+                const walletConnectionPromise = new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const maxAttempts = 5;
+                    
+                    const checkConnection = () => {
+                        attempts++;
+                        const currentWallet = tonConnectUI.wallet;
+                        
+                        if (currentWallet) {
+                            resolve(currentWallet);
+                        } else if (attempts < maxAttempts) {
+                            setTimeout(checkConnection, 2000); // 2 saniye bekle
+                        } else {
+                            reject(new Error('Connection attempts exceeded'));
+                        }
+                    };
+
+                    const unsubscribe = tonConnectUI.onStatusChange((w) => {
+                        if (w) {
+                            unsubscribe();
+                            resolve(w);
                         }
                     });
+
+                    checkConnection();
                 });
 
+                // 60 saniye timeout (artırılmış süre)
                 const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Connection timeout')), 30000);
+                    setTimeout(() => reject(new Error('Connection timeout')), 60000);
                 });
 
-                await Promise.race([
+                const connectedWallet = await Promise.race([
                     walletConnectionPromise,
                     timeoutPromise
                 ]);
+
+                if (connectedWallet) {
+                    console.log('Connected wallet:', connectedWallet);
+                    saveConnectionState(connectedWallet.account.address);
+                    
+                    // Mini App'i yeniden yükle
+                    if (tg) {
+                        tg.MainButton.setText('Processing...');
+                        tg.MainButton.disable();
+                        
+                        // Kısa bir gecikme ekle
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                }
 
             } catch (error) {
                 console.error('Wallet connection error:', error);
@@ -163,23 +193,29 @@ export const PaymentForm = () => {
     // Sayfa yüklendiğinde bağlantıyı kontrol et
     useEffect(() => {
         const checkConnection = async () => {
-            const stored = localStorage.getItem('wallet_connection');
-            if (stored) {
-                try {
+            try {
+                // Önce localStorage'ı kontrol et
+                const stored = localStorage.getItem('wallet_connection');
+                if (stored) {
                     const { connected } = JSON.parse(stored);
-                    if (connected && !wallet) {
-                        console.log('Attempting to restore connection...');
-                        await tonConnectUI.connectWallet();
+                    if (connected) {
+                        // Mevcut bağlantıyı kontrol et
+                        const currentWallet = tonConnectUI.wallet;
+                        if (!currentWallet) {
+                            console.log('Attempting to restore connection...');
+                            await tonConnectUI.connectWallet();
+                        }
                     }
-                } catch (error) {
-                    console.error('Failed to restore connection:', error);
-                    localStorage.removeItem('wallet_connection');
                 }
+            } catch (error) {
+                console.error('Failed to restore connection:', error);
+                localStorage.removeItem('wallet_connection');
             }
         };
 
+        // Sayfa yüklendiğinde ve wallet değiştiğinde kontrol et
         checkConnection();
-    }, []);
+    }, [tonConnectUI]);
 
     // Bağlantı durumunu sürekli izle
     useEffect(() => {
