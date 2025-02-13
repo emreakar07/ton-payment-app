@@ -83,10 +83,13 @@ export const PaymentForm = () => {
         if (wallet) {
             tonConnectUI.disconnect();
         } else {
-            // Sadece modal'ı aç, fazla karışmayalım
             tonConnectUI.openModal();
         }
     }, [wallet, tonConnectUI]);
+
+    useEffect(() => {
+        console.log('Wallet state changed:', wallet);
+    }, [wallet]);
 
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
@@ -119,8 +122,12 @@ export const PaymentForm = () => {
         if (wallet) {
             tonConnectUI.disconnect();
         } else {
-            // Sadece modal'ı aç, fazla karışmayalım
-            tonConnectUI.openModal();
+            console.log('Opening wallet modal...');
+            tonConnectUI.openModal().then(() => {
+                console.log('Modal opened');
+            }).catch(error => {
+                console.error('Modal error:', error);
+            });
         }
     };
 
