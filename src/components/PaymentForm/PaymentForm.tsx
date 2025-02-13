@@ -78,6 +78,35 @@ export const PaymentForm = () => {
     const [transactionHash, setTransactionHash] = useState<string | null>(null);
     const [isTelegramClient, setIsTelegramClient] = useState(false);
 
+    // Bağlantı durumunu localStorage'da sakla
+    const saveConnectionState = (address: string) => {
+        localStorage.setItem('wallet_connection', JSON.stringify({
+            connected: true,
+            address: address
+        }));
+    };
+
+    // Bağlantı durumunu kontrol et
+    useEffect(() => {
+        const checkStoredConnection = async () => {
+            const stored = localStorage.getItem('wallet_connection');
+            if (stored) {
+                const { connected, address } = JSON.parse(stored);
+                if (connected && !wallet) {
+                    try {
+                        // Otomatik yeniden bağlan
+                        await tonConnectUI.connectWallet();
+                    } catch (error) {
+                        console.error('Auto reconnect failed:', error);
+                        localStorage.removeItem('wallet_connection');
+                    }
+                }
+            }
+        };
+
+        checkStoredConnection();
+    }, []);
+
     // Telegram WebApp başlatma ve cüzdan bağlantısı kontrolü
     useEffect(() => {
         const tg = window.Telegram?.WebApp;
@@ -86,7 +115,6 @@ export const PaymentForm = () => {
             return;
         }
 
-        // Telegram WebApp'i başlat
         tg.ready();
         tg.expand();
         setIsTelegramClient(true);
@@ -112,58 +140,56 @@ export const PaymentForm = () => {
         const tg = window.Telegram?.WebApp;
         if (wallet) {
             await tonConnectUI.disconnect();
+            localStorage.removeItem('wallet_connection');
         } else {
             try {
-                // Modal'ı aç
                 await tonConnectUI.openModal();
                 
-                // Bağlantıyı bekle
                 const walletConnectionPromise = new Promise((resolve) => {
                     const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
                         if (wallet) {
                             unsubscribe();
                             resolve(wallet);
+                            
+                            // Bağlantı durumunu kaydet
+                            saveConnectionState(wallet.account.address);
                         }
                     });
                 });
 
-                // 30 saniye timeout
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Connection timeout')), 30000);
                 });
 
-                // Bağlantıyı bekle veya timeout
                 const connectedWallet = await Promise.race([
                     walletConnectionPromise,
                     timeoutPromise
-                ]) as any; // Type assertion ekledik
+                ]) as any;
 
-                console.log('Wallet connected successfully:', connectedWallet);
-
-                // Telegram'a başarılı bağlantı bilgisi gönder
-                if (tg && connectedWallet) { // connectedWallet kontrolü ekledik
+                if (tg && connectedWallet) {
                     tg.sendData(JSON.stringify({
                         event: 'wallet_connected',
-                        address: connectedWallet.account.address // wallet yerine connectedWallet kullanıyoruz
+                        address: connectedWallet.account.address
                     }));
                 }
-
             } catch (error) {
                 console.error('Wallet connection error:', error);
                 setPaymentStatus('failed');
+                localStorage.removeItem('wallet_connection');
             }
         }
     };
 
-    // Wallet state değişimlerini daha detaylı izle
+    // Wallet state değişimlerini izle
     useEffect(() => {
         const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
             if (wallet) {
                 console.log('Wallet connected:', wallet);
-                // Bağlantı başarılı olduğunda UI'ı güncelle
                 setPaymentStatus(null);
+                saveConnectionState(wallet.account.address);
             } else {
                 console.log('Wallet disconnected');
+                localStorage.removeItem('wallet_connection');
             }
         });
 
