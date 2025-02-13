@@ -6,6 +6,11 @@
   "privacyPolicyUrl": "https://ton-payment-app.vercel.app/privacy",
   "manifestVersion": 1,
   "parameters": {
-    "twaReturnUrl": "https://t.me/electronicpinbot"
+    "twaReturnUrl": "https://t.me/electronicpinbot",
+    "walletConfig": {
+      "defaultWallet": "telegram-wallet",
+      "injected": ["telegram-wallet"],
+      "embedded": ["telegram-wallet"]
+    }
   }
 }
