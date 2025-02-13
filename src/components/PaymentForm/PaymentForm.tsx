@@ -320,6 +320,15 @@ export const PaymentForm = () => {
                         {paymentStatus === 'failed' && <p>Payment Failed. Please try again.</p>}
                     </div>
                 )}
+
+                <button 
+                    className={`action-button ${paymentStatus === 'pending' ? 'loading' : ''}`}
+                    onClick={wallet ? handlePayment : handleWalletAction}
+                    disabled={paymentStatus === 'pending'}
+                >
+                    {paymentStatus === 'pending' ? 'Processing...' : 
+                     wallet ? 'Send Payment' : 'Connect Wallet'}
+                </button>
             </div>
         </div>
     );
